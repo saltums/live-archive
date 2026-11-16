@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ライブハウスとバンドの記録</title>
+<meta name="description" content="名古屋のライブハウスと、そこに出たバンドの記録。会場から、アーティストから、公演からたどれます。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#18181a; --ink-2:#64646a; --line:#e3e1da; --soft:#efede6;
+  --accent:#d4531f; --accent-ink:#9c3a12; --accent-tint:#fbe9df; --full:#2f5f8a; --full-tint:#e6eef6; --pin:#d4531f;
+  --sans:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;
+  --head:"Space Grotesk","Noto Sans JP",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141416; --card:#1d1d20; --ink:#ecebe6; --ink-2:#a3a29c; --line:#2f2f33; --soft:#26262a;
+  --accent:#f0804e; --accent-ink:#f5a37d; --accent-tint:#3a2419; --full:#7fb0dc; --full-tint:#1c2a37; --pin:#f0804e; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#141416; --card:#1d1d20; --ink:#ecebe6; --ink-2:#a3a29c; --line:#2f2f33; --soft:#26262a;
+  --accent:#f0804e; --accent-ink:#f5a37d; --accent-tint:#3a2419; --full:#7fb0dc; --full-tint:#1c2a37; --pin:#f0804e; color-scheme:dark }
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7}
+a{color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{border-bottom:1px solid var(--line);background:var(--card);padding-top:env(safe-area-inset-top,0px)}
+header.top .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
+.logo{font-family:var(--head);font-weight:700;font-size:1.15rem;text-decoration:none;letter-spacing:.01em}
+.logo small{display:block;font-family:var(--sans);font-weight:400;font-size:.72rem;color:var(--ink-2);letter-spacing:.04em}
+nav.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav.tabs a{text-decoration:none;padding:6px 12px;border-radius:999px;font-size:.88rem;color:var(--ink-2)}
+nav.tabs a.on{background:var(--ink);color:var(--bg)}
+main{padding-block:24px 64px;overflow-wrap:anywhere}
+h1{font-family:var(--head);font-size:clamp(1.5rem,4.5vw,2.2rem);line-height:1.25;margin:0 0 6px;text-wrap:balance}
+h2{font-size:1.05rem;margin:32px 0 10px;text-wrap:balance}
+.lead{color:var(--ink-2);max-width:62ch;margin:0 0 16px}
+.kicker{font-size:.75rem;letter-spacing:.12em;color:var(--accent-ink);font-weight:700;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.grid>*{min-width:0}
+.stats{display:flex;gap:24px;flex-wrap:wrap;margin:8px 0 4px}
+.stat .n{font-family:var(--head);font-size:1.6rem;font-weight:700;line-height:1.1}
+.stat .l{font-size:.78rem;color:var(--ink-2)}
+#map{height:min(58vh,440px);border-radius:12px;border:1px solid var(--line);z-index:0}
+.vcard{display:block;text-decoration:none}
+.vcard b{display:block;font-size:1rem}
+.vcard span{font-size:.82rem;color:var(--ink-2)}
+.fullcard{display:block;text-decoration:none;background:var(--full-tint);border-color:transparent}
+.fullcard b{font-size:1.1rem;color:var(--full)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;background:var(--soft);font-size:.84rem;text-decoration:none;border:1px solid transparent;max-width:100%}
+a.chip:hover{border-color:var(--line)}
+.chip .c{font-size:.72rem;color:var(--ink-2)}
+.chip.full{background:var(--full-tint);color:var(--full);font-weight:700}
+.chip.plain{background:transparent;border-color:var(--line);color:var(--ink-2)}
+.chip.on{background:var(--ink);color:var(--bg)}
+button.chip{font:inherit;font-size:.84rem;cursor:pointer;color:inherit}
+.shows{list-style:none;margin:0;padding:0}
+.shows li{border-top:1px solid var(--line);padding:10px 0;display:grid;grid-template-columns:7.2em 1fr;gap:4px 12px}
+.shows li>*{min-width:0}
+.shows .d{font-family:var(--head);font-weight:500;font-size:.92rem;color:var(--ink-2)}
+.shows .t a{font-weight:700;text-decoration:none}
+.shows .t a:hover{text-decoration:underline}
+.shows .m{grid-column:2;font-size:.85rem;color:var(--ink-2)}
+.yearh{font-family:var(--head);font-size:1.3rem;margin:24px 0 4px}
+.rank{list-style:none;margin:0;padding:0;columns:2 260px;column-gap:24px}
+.rank li{break-inside:avoid;display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted var(--line);padding:5px 0}
+.rank li>*{min-width:0}
+.rank .n{font-family:var(--head);color:var(--ink-2);white-space:nowrap}
+.search{width:100%;max-width:420px;font:inherit;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.dl{display:grid;grid-template-columns:6em 1fr;gap:4px 12px;margin:0}
+.dl dt{color:var(--ink-2);font-size:.85rem}
+.dl dd{margin:0;min-width:0}
+.acts{list-style:none;margin:0;padding:0}
+.acts li{padding:10px 0;border-top:1px solid var(--line)}
+.acts .set{font-size:.85rem;color:var(--ink-2);margin-top:4px}
+.note{font-size:.82rem;color:var(--ink-2)}
+.crumb{font-size:.85rem;margin-bottom:12px}
+.crumb a{color:var(--ink-2)}
+.empty{color:var(--ink-2);padding:40px 0;text-align:center}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--ink-2);margin-top:8px}
+.btn{display:inline-block;padding:8px 16px;border-radius:999px;background:var(--full);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem}
+.more{font:inherit;background:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--ink);margin-top:8px}
+footer{border-top:1px solid var(--line);padding-block:24px;font-size:.8rem;color:var(--ink-2)}
+.leaflet-container{font-family:var(--sans)}
+@media (max-width:600px){ .shows li{grid-template-columns:1fr} .shows .m{grid-column:1} nav.tabs{margin-left:0} }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="#">ライブハウスとバンドの記録<small>名古屋・新栄まわりのライブ</small></a>
+  <nav class="tabs" aria-label="ページ">
+    <a href="#" data-tab="top">トップ</a>
+    <a href="#venues" data-tab="venues">会場</a>
+    <a href="#artists" data-tab="artists">アーティスト</a>
+    <a href="#shows" data-tab="shows">公演</a>
+  </nav>
+</div></header>
+<main class="wrap" id="app"><p class="empty">読み込んでいます…</p></main>
+<footer><div class="wrap">
+  公演と出演者は、新栄SiX-DOG の公式スケジュール（Wayback Machine から復元）と、バンドのメンバーが残した記録から。
+  名前だけで押せない出演者は、まだページを公開していないバンドです。
+</div></footer>
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+"use strict";
+const CFG = window.SITE_CONFIG;
+const app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const KIND = {band:"", solo:"弾き語り", copy:"コピー", stream:"配信", cancel:"中止", plan:"予定"};
+const WD = "日月火水木金土";
+let D = null, map = null;
+
+// ---------------------------------------------------------------- データ
+async function load(){
+  const r = await fetch(CFG.supabaseUrl + "/rest/v1/rpc/pub_snapshot", {method:"POST",
+    headers:{apikey:CFG.publishableKey, Authorization:"Bearer " + CFG.publishableKey, "Content-Type":"application/json"}, body:"{}"});
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const s = await r.json();
+  const artists = new Map(s.artists.map(a => [a[0], {id:a[0], name:a[1], level:a[2], region:a[3], slug:a[4], shows:new Set()}]));
+  const venues = new Map(s.venues.map(v => [v[0], {id:v[0], name:v[1], area:v[2], lat:v[3], lng:v[4], approx:v[5], shows:[]}]));
+  const shows = new Map(s.shows.map(x => [x[0], {id:x[0], date:x[1], venue_id:x[2], venue_text:x[3], title:x[4], open:x[5], start:x[6], price:x[7], src:x[8], acts:[]}]));
+  for (const a of s.acts){
+    const sh = shows.get(a[1]); if (!sh) continue;
+    const act = {id:a[0], show_id:a[1], artist_id:a[2], name:a[3], kind:a[4], slot:a[5], setlist:a[6], src:a[7], as_id:a[8]};
+    sh.acts.push(act);
+    const ar = artists.get(a[2]); if (ar) ar.shows.add(a[1]);
+  }
+  const list = [...shows.values()].sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id);
+  for (const sh of list){ const v = venues.get(sh.venue_id); if (v) v.shows.push(sh); }
+  D = {artists, venues, shows, list};
+}
+
+// ---------------------------------------------------------------- 部品
+const fmtDate = d => { const t = new Date(d + "T00:00:00"); return `${d.slice(0,4)}.${d.slice(5,7)}.${d.slice(8,10)}（${WD[t.getDay()]}）`; };
+const venueName = sh => sh.venue_id ? (D.venues.get(sh.venue_id)?.name || "") : (sh.venue_text || "会場不明");
+function artistLink(id, label, count){
+  const a = D.artists.get(id); const nm = esc(label ?? a?.name ?? "");
+  const c = count != null ? ` <span class="c">${count}</span>` : "";
+  if (!a || a.level === "name") return `<span class="chip plain" title="ページはまだ公開していません">${nm}${c}</span>`;
+  if (a.level === "full") return `<a class="chip full" href="artists/${esc(a.slug)}/">${nm}${c}</a>`;
+  return `<a class="chip" href="#artist-${a.id}">${nm}${c}</a>`;
+}
+function showRow(sh, opt = {}){
+  const v = opt.hideVenue ? "" : (sh.venue_id ? `<a href="#venue-${sh.venue_id}">${esc(venueName(sh))}</a>` : esc(venueName(sh)));
+  const names = sh.acts.slice(0, 14).map(a => esc(a.name)).join(" / ") + (sh.acts.length > 14 ? ` ほか${sh.acts.length - 14}組` : "");
+  return `<li><span class="d">${fmtDate(sh.date)}</span>
+    <span class="t"><a href="#show-${sh.id}">${esc(sh.title || "（公演名なし）")}</a>${v ? `　<span class="note">${v}</span>` : ""}</span>
+    <span class="m">${names || "出演者の記録なし"}</span></li>`;
+}
+function byYear(list, render){
+  const ys = {}; for (const sh of list) (ys[sh.date.slice(0,4)] ||= []).push(sh);
+  return Object.keys(ys).sort().reverse().map(y => `<h3 class="yearh">${y}<span class="note">　${ys[y].length}公演</span></h3><ul class="shows">${ys[y].slice().reverse().map(render).join("")}</ul>`).join("");
+}
+function countArtists(list, exceptId){
+  const m = new Map();
+  for (const sh of list) for (const a of new Map(sh.acts.map(x => [x.artist_id, x])).values()){
+    if (a.artist_id === exceptId) continue;
+    m.set(a.artist_id, (m.get(a.artist_id) || 0) + 1);
+  }
+  return [...m.entries()].sort((a,b) => b[1] - a[1] || (D.artists.get(a[0])?.name || "").localeCompare(D.artists.get(b[0])?.name || "", "ja"));
+}
+const span = list => list.length ? `${list[0].date.slice(0,4)}〜${list[list.length-1].date.slice(0,4)}` : "";
+
+// ---------------------------------------------------------------- ページ
+function vTop(){
+  const full = [...D.artists.values()].filter(a => a.level === "full");
+  const vs = [...D.venues.values()].sort((a,b) => b.shows.length - a.shows.length);
+  const nArt = [...D.artists.values()].filter(a => a.shows.size).length;
+  return `<p class="kicker">Live house × Band archive</p>
+  <h1>会場から、バンドから、公演からたどる</h1>
+  <p class="lead">名古屋・新栄まわりのライブハウスに残っている公演と出演者の記録です。地図の会場を押すと、そこに出たアーティストと公演の一覧へ。アーティストを押すと、そのバンドが出た会場と公演へ進めます。</p>
+  <div class="stats">
+    <div class="stat"><div class="n">${D.list.length.toLocaleString()}</div><div class="l">公演</div></div>
+    <div class="stat"><div class="n">${nArt.toLocaleString()}</div><div class="l">出演者</div></div>
+    <div class="stat"><div class="n">${vs.length}</div><div class="l">会場</div></div>
+  </div>
+  <h2>地図</h2>
+  <div id="map" role="region" aria-label="会場の地図"></div>
+  <div class="legend"><span>円の大きさは記録に残っている公演の数</span></div>
+  ${full.length ? `<h2>バンドの記録</h2><div class="grid">${full.map(a => `<a class="card fullcard" href="artists/${esc(a.slug)}/"><b>${esc(a.name)}</b><span class="note">${a.shows.size}公演の記録・セトリ・曲・年表</span></a>`).join("")}</div>` : ""}
+  <h2>会場</h2>
+  <div class="grid">${vs.map(v => `<a class="card vcard" href="#venue-${v.id}"><b>${esc(v.name)}</b><span>${v.shows.length}公演　${span(v.shows)}</span></a>`).join("")}</div>`;
+}
+function drawMap(){
+  const el = document.getElementById("map"); if (!el || !window.L) return;
+  const vs = [...D.venues.values()].filter(v => v.lat != null && v.shows.length);
+  map = L.map(el, {scrollWheelZoom:false});
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+  const pin = getComputedStyle(document.documentElement).getPropertyValue("--pin").trim() || "#d4531f";
+  const max = Math.max(...vs.map(v => v.shows.length));
+  const ms = vs.map(v => L.circleMarker([v.lat, v.lng], {radius: 7 + 20 * Math.sqrt(v.shows.length / max), color: pin, weight: 2, fillColor: pin, fillOpacity: .35})
+    .bindTooltip(`${v.name}　${v.shows.length}公演`).on("click", () => { location.hash = "venue-" + v.id; }).addTo(map));
+  if (ms.length) map.fitBounds(L.featureGroup(ms).getBounds().pad(0.3), {maxZoom:15});
+}
+function vVenues(){
+  const vs = [...D.venues.values()].sort((a,b) => b.shows.length - a.shows.length);
+  return `<h1>会場</h1><p class="lead">記録に残っている公演がある会場です。</p>
+  <div class="grid">${vs.map(v => `<a class="card vcard" href="#venue-${v.id}"><b>${esc(v.name)}</b><span>${v.shows.length}公演　${span(v.shows)}・出演者${countArtists(v.shows).length}組</span></a>`).join("")}</div>`;
+}
+function vVenue(id){
+  const v = D.venues.get(id); if (!v) return notFound();
+  const ranks = countArtists(v.shows);
+  const years = [...new Set(v.shows.map(s => s.date.slice(0,4)))].sort();
+  const isSix = /six-?dog/i.test(v.name);
+  return `<div class="crumb"><a href="#venues">会場</a> ›</div>
+  <h1>${esc(v.name)}</h1>
+  <div class="stats"><div class="stat"><div class="n">${v.shows.length}</div><div class="l">公演</div></div>
+    <div class="stat"><div class="n">${ranks.length}</div><div class="l">出演者</div></div>
+    <div class="stat"><div class="n">${esc(span(v.shows))}</div><div class="l">記録のある年</div></div></div>
+  ${isSix ? `<p class="note">2019年2月に閉店。動画やみんなの書き込みは <a href="${esc(CFG.sixdogArchive)}" target="_blank" rel="noopener">SiX-DOG ARCHIVE</a> へ。</p>` : `<p class="note">この会場は、公開しているバンドの記録に出てくる公演だけを載せています。</p>`}
+  <h2>出たアーティスト</h2>
+  <div class="chips" id="yf"><button class="chip on" data-y="">すべての年</button>${years.map(y => `<button class="chip" data-y="${y}">${y}</button>`).join("")}</div>
+  <p class="note" style="margin:8px 0">数字はこの会場での出演回数。<input class="search" id="vq" placeholder="名前でしぼる" aria-label="名前でしぼる" style="margin-top:8px"></p>
+  <div class="chips" id="vr"></div>
+  <button class="more" id="vrm" hidden>もっと見る</button>
+  <h2>公演</h2>
+  ${byYear(v.shows, sh => showRow(sh, {hideVenue:true}))}`;
+}
+function bindVenue(id){
+  const v = D.venues.get(id); if (!v) return;
+  let year = "", q = "", lim = 80;
+  const draw = () => {
+    const list = year ? v.shows.filter(s => s.date.startsWith(year)) : v.shows;
+    let r = countArtists(list);
+    if (q) r = r.filter(([aid]) => (D.artists.get(aid)?.name || "").toLowerCase().includes(q));
+    document.getElementById("vr").innerHTML = r.slice(0, lim).map(([aid, n]) => artistLink(aid, null, n)).join("") || `<span class="note">該当なし</span>`;
+    document.getElementById("vrm").hidden = r.length <= lim;
+  };
+  document.getElementById("yf").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    year = b.dataset.y; lim = 80; document.querySelectorAll("#yf .chip").forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  document.getElementById("vq").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); draw(); });
+  document.getElementById("vrm").addEventListener("click", () => { lim += 200; draw(); });
+  draw();
+}
+function vArtists(){
+  return `<h1>アーティスト</h1><p class="lead">公演の記録に名前がある出演者です。数字は記録に残っている出演回数。灰色の名前は、まだページを公開していないバンドです。</p>
+  <input class="search" id="aq" placeholder="名前でさがす" aria-label="名前でさがす">
+  <h2 id="ah"></h2><div class="chips" id="al"></div><button class="more" id="alm" hidden>もっと見る</button>`;
+}
+function bindArtists(){
+  const all = [...D.artists.values()].filter(a => a.shows.size).sort((a,b) => (b.level === "full") - (a.level === "full") || b.shows.size - a.shows.size || a.name.localeCompare(b.name, "ja"));
+  let q = "", lim = 300;
+  const draw = () => {
+    const r = q ? all.filter(a => a.name.toLowerCase().includes(q)) : all;
+    document.getElementById("ah").textContent = `${r.length.toLocaleString()}組`;
+    document.getElementById("al").innerHTML = r.slice(0, lim).map(a => artistLink(a.id, null, a.shows.size)).join("");
+    document.getElementById("alm").hidden = r.length <= lim;
+  };
+  document.getElementById("aq").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); lim = 300; draw(); });
+  document.getElementById("alm").addEventListener("click", () => { lim += 600; draw(); });
+  draw();
+}
+function vArtist(id){
+  const a = D.artists.get(id); if (!a || a.level === "name") return notFound();
+  const list = D.list.filter(sh => a.shows.has(sh.id));
+  const vc = new Map(); for (const sh of list) if (sh.venue_id) vc.set(sh.venue_id, (vc.get(sh.venue_id) || 0) + 1);
+  const co = countArtists(list, id);
+  return `<div class="crumb"><a href="#artists">アーティスト</a> ›</div>
+  <h1>${esc(a.name)}</h1>
+  ${a.region ? `<p class="note">${esc(a.region)}</p>` : ""}
+  ${a.level === "full" ? `<p><a class="btn" href="artists/${esc(a.slug)}/">詳しい記録（年表・セトリ・曲）を見る</a></p>` : ""}
+  <div class="stats"><div class="stat"><div class="n">${list.length}</div><div class="l">公演</div></div>
+    <div class="stat"><div class="n">${vc.size}</div><div class="l">会場</div></div>
+    <div class="stat"><div class="n">${esc(span(list))}</div><div class="l">記録のある年</div></div></div>
+  <h2>出た会場</h2>
+  <ul class="rank">${[...vc.entries()].sort((x,y) => y[1] - x[1]).map(([vid, n]) => `<li><a href="#venue-${vid}">${esc(D.venues.get(vid)?.name)}</a><span class="n">${n}</span></li>`).join("")}</ul>
+  <h2>よく一緒に出た相手</h2>
+  <div class="chips">${co.slice(0, 40).map(([aid, n]) => artistLink(aid, null, n)).join("")}</div>
+  <h2>公演</h2>
+  ${byYear(list, sh => showRow(sh))}`;
+}
+function vShows(){
+  const years = [...new Set(D.list.map(s => s.date.slice(0,4)))].sort().reverse();
+  return `<h1>公演</h1><p class="lead">記録に残っている公演を年ごとに並べています。</p>
+  <div class="chips" id="sy">${years.map((y, i) => `<button class="chip${i ? "" : " on"}" data-y="${y}">${y}</button>`).join("")}</div>
+  <div id="sl"></div>`;
+}
+function bindShows(){
+  const draw = y => { document.getElementById("sl").innerHTML = byYear(D.list.filter(s => s.date.startsWith(y)), sh => showRow(sh)); };
+  document.getElementById("sy").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#sy .chip").forEach(x => x.classList.toggle("on", x === b)); draw(b.dataset.y); });
+  const first = document.querySelector("#sy .chip"); if (first) draw(first.dataset.y);
+}
+function vShow(id){
+  const sh = D.shows.get(id); if (!sh) return notFound();
+  const v = sh.venue_id ? `<a href="#venue-${sh.venue_id}">${esc(venueName(sh))}</a>` : esc(venueName(sh));
+  const time = [sh.open && `開場 ${esc(sh.open)}`, sh.start && `開演 ${esc(sh.start)}`].filter(Boolean).join("　");
+  const srcs = [...new Set([sh.src, ...sh.acts.map(a => a.src)].filter(Boolean))];
+  const srcLabel = u => /web\.archive\.org/.test(u) ? "会場の公式スケジュール（Wayback）" : /hatenablog/.test(u) ? "ブログ" : /x\.com|twitter/.test(u) ? "X のポスト" : "出典";
+  return `<div class="crumb"><a href="#shows">公演</a> ›</div>
+  <p class="kicker">${fmtDate(sh.date)}</p>
+  <h1>${esc(sh.title || "（公演名なし）")}</h1>
+  <dl class="dl"><dt>会場</dt><dd>${v}</dd>${time ? `<dt>時間</dt><dd>${time}</dd>` : ""}${sh.price ? `<dt>料金</dt><dd>${esc(sh.price)}</dd>` : ""}</dl>
+  <h2>出演</h2>
+  <ul class="acts">${sh.acts.map(a => `<li>${artistLink(a.artist_id, a.name)}${KIND[a.kind] ? ` <span class="note">${KIND[a.kind]}</span>` : ""}${a.as_id && D.artists.get(a.as_id) ? ` <span class="note">（${esc(D.artists.get(a.as_id).name)} として）</span>` : ""}
+     ${a.setlist && a.setlist.length ? `<div class="set">セトリ：${a.setlist.map(esc).join(" / ")}</div>` : ""}</li>`).join("") || `<li class="note">出演者の記録なし</li>`}</ul>
+  ${srcs.length ? `<h2>出典</h2><p class="note">${srcs.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${srcLabel(u)}</a>`).join("　")}</p>` : ""}`;
+}
+const notFound = () => `<p class="empty">ページが見つかりません。<a href="#">トップへ</a></p>`;
+
+// ---------------------------------------------------------------- 切り替え
+function route(){
+  if (!D) return;
+  if (map){ map.remove(); map = null; }
+  const h = location.hash.replace(/^#/, ""); let m, tab = "top", bind = null, html;
+  if (!h) html = vTop();
+  else if (h === "venues"){ html = vVenues(); tab = "venues"; }
+  else if ((m = h.match(/^venue-(\d+)$/))){ html = vVenue(+m[1]); tab = "venues"; bind = () => bindVenue(+m[1]); }
+  else if (h === "artists"){ html = vArtists(); tab = "artists"; bind = bindArtists; }
+  else if ((m = h.match(/^artist-(\d+)$/))){ html = vArtist(+m[1]); tab = "artists"; }
+  else if (h === "shows"){ html = vShows(); tab = "shows"; bind = bindShows; }
+  else if ((m = h.match(/^show-(\d+)$/))){ html = vShow(+m[1]); tab = "shows"; }
+  else html = notFound();
+  app.innerHTML = html;
+  document.querySelectorAll("nav.tabs a").forEach(a => a.classList.toggle("on", a.dataset.tab === tab));
+  if (bind) bind();
+  if (!h) drawMap();
+  const t = app.querySelector("h1"); document.title = (h && t ? t.textContent + " | " : "") + "ライブハウスとバンドの記録";
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+load().then(route).catch(e => { app.innerHTML = `<p class="empty">データを読み込めませんでした（${esc(e.message)}）。時間をおいて開き直してください。</p>`; });
+})();
+</script>
+</body>
+</html>
