@@ -109,6 +109,12 @@ header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
 #card .dates{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #card .dates button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-family:var(--num);font-size:12px;cursor:pointer}
 #card .dates button.cur{border-color:var(--lamp);color:var(--lamp)}
+#card .ylist{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:13px}
+#card .ylist summary{cursor:pointer;color:var(--ink);font-weight:700;padding:2px 0}
+#card .ylist button{display:flex;gap:8px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:6px 0;cursor:pointer;align-items:baseline}
+#card .ylist button .d{font-family:var(--num);color:var(--ink-2);flex:none;width:38px}
+#card .ylist button small{display:block;color:var(--ink-2);font-size:11.5px;line-height:1.45}
+#card .ylist button.cur .d{color:var(--lamp)}
 #card .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 #card .floors{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 #card .floors button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}
@@ -208,12 +214,13 @@ async function loadData(){
       m.get(x[1]).push({title:x[4] || "", names:as.map(a => a.name), ids:as.map(a => a.id)});
     }
   } catch(e){ console.warn("公開分を読めませんでした", e); }
-  if (MODE === "private" && window.TOWN_NIGHTS){
-    for (const [k, days] of Object.entries(window.TOWN_NIGHTS)){
+  // 台帳の分（ハコごとの全公演）。公開の地図は town/nights.json、Claude の中のページは先に読み込んだ window.TOWN_NIGHTS
+  const merge = all => { for (const [k, days] of Object.entries(all || {})){
       const m = NIGHTS[k] || (NIGHTS[k] = new Map());
       for (const [d, evs] of Object.entries(days)) if (!m.has(d)) m.set(d, evs.map(e => ({title:e[0] || "", names:e.slice(1)})));
-    }
-  }
+    } };
+  if (window.TOWN_NIGHTS) merge(window.TOWN_NIGHTS);
+  else try { const r = await fetch(window.TOWN_NIGHTS_URL || "town/nights.json"); if (r.ok) merge((await r.json()).nights); } catch(e){ console.warn("台帳の分を読めませんでした", e); }
   // 組の索引
   for (const [k, m] of Object.entries(NIGHTS)) for (const [d, evs] of m) for (const e of evs) e.names.forEach((n, i) => {
     const key = nk(n); if (!key) return;
@@ -223,8 +230,8 @@ async function loadData(){
   });
   for (const a of ARTISTS.values()){ a.n = 0; for (const l of a.hits.values()){ l.sort(); a.n += l.length; } }
 }
-const state = k => PUBLIC.has(k) ? "open" : (MODE === "private" && NIGHTS[k] && NIGHTS[k].size) || LEDGER.has(k) ? "staff" : "prep";
-const STATE_LABEL = {open:"入れる", staff:"関係者だけ", prep:"準備中"};
+const state = k => PUBLIC.has(k) ? "open" : (NIGHTS[k] && NIGHTS[k].size) ? "staff" : "prep";
+const STATE_LABEL = {open:"入れる", staff:"記録あり", prep:"準備中"};
 const ymOf = s => s ? String(s).slice(0,7) : null;
 const V = k => T.venues.find(v => v.key === k);
 function aliveOn(v, d){
@@ -552,6 +559,13 @@ function select(k){
   setDate(date); renderCard(); $("#card").classList.add("on"); focusVenue(k);
 }
 function closeCard(keepView){ selected = null; $("#card").classList.remove("on"); setDate(date); if (!keepView) home(); }
+let ylistOpen = false;
+function yearList(k){   // その年にそのハコであった公演（休みの日は除く）
+  const y = date.slice(0, 4), m = NIGHTS[k]; if (!m) return "";
+  const ds = [...m.keys()].filter(d => d.startsWith(y) && nightsAt(k, d)).sort(); if (!ds.length) return "";
+  return `<details class="ylist"${ylistOpen ? " open" : ""}><summary>${y}年の公演 ${ds.length} 件</summary>${ds.map(d => nightsAt(k, d).map(e =>
+    `<button type="button" data-d="${d}" class="${d === date ? "cur" : ""}"><span class="d">${+d.slice(5,7)}/${+d.slice(8,10)}</span><span>${esc(e.title || "")}${e.names.length ? `<small>${esc(e.names.slice(0, 8).join(" / "))}${e.names.length > 8 ? " ほか" : ""}</small>` : ""}</span></button>`).join("")).join("")}</details>`;
+}
 function renderCard(){
   const v = V(selected), k = v.key, st = state(k), alive = aliveOn(v, date), evs = nightsAt(k, date);
   const floors = v.building ? T.venues.filter(w => w.building === v.building) : [];
@@ -571,11 +585,14 @@ function renderCard(){
       <button type="button" class="btn" id="cardClose" aria-label="閉じる">✕</button></div>
     ${floors.length > 1 ? `<div class="floors">${floors.map(w => `<button type="button" data-k="${w.key}" class="${w.key === k ? "cur" : ""}">${esc(w.floor || "")} ${esc(shortName(w))}</button>`).join("")}</div>` : ""}
     ${body}
-    <div class="acts">${canEnter ? (NEW_TAB ? `<a class="btn primary" href="${esc(enterUrl(v))}" target="_blank" rel="noopener">入る（別のタブで開きます）</a>` : `<button type="button" class="btn primary" id="enter">入る</button>`) : `<span class="meta">${st === "staff" ? "関係者だけが見られます" : "準備中です"}</span>`}
+    ${yearList(k)}
+    <div class="acts">${canEnter ? (NEW_TAB ? `<a class="btn primary" href="${esc(enterUrl(v))}" target="_blank" rel="noopener">入る（別のタブで開きます）</a>` : `<button type="button" class="btn primary" id="enter">入る</button>`) : `<span class="meta">${st === "staff" ? "" : "準備中です"}</span>`}
       ${artist && artist.id && ARTIST_PAGE ? `<a class="btn" href="${ARTIST_PAGE(artist.id)}">${esc(artist.name)} のページ</a>` : ""}</div>`;
   $("#cardClose").onclick = () => closeCard();
   $("#card").querySelectorAll(".floors button").forEach(b => b.onclick = () => select(b.dataset.k));
   $("#card").querySelectorAll(".dates button").forEach(b => b.onclick = () => setDate(b.dataset.d));
+  $("#card").querySelectorAll(".ylist button").forEach(b => b.onclick = () => setDate(b.dataset.d));
+  const yl = $("#card .ylist"); if (yl) yl.addEventListener("toggle", () => { ylistOpen = yl.open; });
   const en = $("#enter"); if (en) en.onclick = () => enter(v);
 }
 // 自前のアーカイブがあるハコ（SiX-DOG）はそちらへ。その夜に公演があればその日のページ、なければ会場（3D）
