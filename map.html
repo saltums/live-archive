@@ -9,9 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
+/* 夜の街（斜め俯瞰）を上に、選ぶための段を下に置く1画面の作り */
 :root{
-  --bg:#0A0F22; --ground:#0D1430; --ink:#F2F0E6; --ink-2:#A6AEC6; --lamp:#FFC857; --open:#FF5C7A; --station:#7FB7FF;
-  --panel:rgba(13,20,48,.86); --line:rgba(166,174,198,.22);
+  --bg:#0A0F22; --ground:#0D1430; --panel:#101838; --panel-2:#0D1430; --ink:#F2F0E6; --ink-2:#A6AEC6; --lamp:#FFC857; --open:#FF5C7A; --station:#7FB7FF;
+  --line:rgba(166,174,198,.22);
   --sans:"Zen Kaku Gothic New",system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;
   --num:"Space Grotesk","Zen Kaku Gothic New",system-ui,sans-serif;
   color-scheme:dark;
@@ -19,75 +20,104 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
 #stage{position:fixed;inset:0}
 #stage canvas{display:block;width:100%;height:100%;touch-action:none}
-#labels{position:fixed;inset:0;pointer-events:none}
-.tag{position:absolute;transform:translate(-50%,calc(-100% - 22px));pointer-events:auto;cursor:pointer;white-space:nowrap;
-  font-size:12px;line-height:1.25;padding:5px 9px 6px;border-radius:9px;background:rgba(10,15,34,.82);border:1px solid var(--line);
-  color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.35);transition:opacity .25s, transform .25s;user-select:none}
-.tag::after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:inherit;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
-.tag b{font-weight:700;display:block;font-size:12.5px}
-.tag small{display:block;font-size:10.5px;color:var(--ink-2);margin-top:1px}
-.tag.lit{border-color:rgba(255,200,87,.7)}
-.tag.lit b::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--lamp);margin-right:5px;vertical-align:1px;box-shadow:0 0 8px var(--lamp)}
-.tag.open small{color:var(--open)}
-.tag.gone{opacity:.45}
-.tag.hide{opacity:0;pointer-events:none}
-.tag.station{background:transparent;border:none;box-shadow:none;color:var(--station);font-size:11px;padding:0;pointer-events:none}
-.tag.station::after{display:none}
-.tag.island{background:transparent;border:none;box-shadow:none;color:var(--ink-2);font-family:var(--num);letter-spacing:.2em;font-size:11px;pointer-events:none}
-.tag.island::after{display:none}
+#pins{position:fixed;inset:0;pointer-events:none}
 
-header{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
-  display:flex;align-items:flex-start;gap:10px;background:linear-gradient(var(--bg) 40%,rgba(10,15,34,0));pointer-events:none}
-header .t{flex:1;min-width:0;pointer-events:auto}
-header h1{margin:0;font-size:15px;font-weight:700;letter-spacing:.04em}
-header .when{margin-top:3px;font-family:var(--num);font-size:20px;font-weight:700;letter-spacing:.02em}
+/* 地図の上の印（名札は持たない。灯り・入れる・選んだハコだけ短い名前を出す） */
+.pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:5px;
+  padding:6px;border:none;background:transparent;white-space:nowrap}
+.pin i{width:9px;height:9px;border-radius:50%;background:#59628a;box-shadow:0 0 0 2px rgba(10,15,34,.85);flex:none}
+.pin.open i{background:var(--open)}
+.pin.lit i{background:var(--lamp);box-shadow:0 0 0 2px rgba(10,15,34,.85),0 0 12px 3px rgba(255,200,87,.75)}
+.pin.gone{opacity:.35}
+.pin span{font-size:11px;line-height:1;padding:3px 6px;border-radius:6px;background:rgba(10,15,34,.82);border:1px solid var(--line);display:none}
+.pin.lit span,.pin.sel span,.pin.hit span{display:inline-block}
+.pin.sel i{outline:2px solid var(--ink);outline-offset:2px}
+.pin b{font-family:var(--num);color:var(--lamp);margin-left:3px}
+.mark{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-size:11px;white-space:nowrap}
+.mark.station{color:var(--station)}
+.mark.island{color:var(--ink-2);font-family:var(--num);letter-spacing:.3em}
+
+header{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:flex-start;gap:10px;background:linear-gradient(var(--bg) 55%,rgba(10,15,34,0));z-index:3}
+header .t{flex:1;min-width:0}
+header h1{margin:0;font-size:14px;font-weight:700;letter-spacing:.04em}
+header .when{margin-top:2px;font-family:var(--num);font-size:21px;font-weight:700;letter-spacing:.02em}
 header .when span{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--lamp);margin-left:6px}
-header .sub{font-size:11.5px;color:var(--ink-2);margin-top:2px}
-.btn{pointer-events:auto;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:8px 13px;font:500 13px var(--sans);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 13px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
 .btn svg{width:15px;height:15px}
-#back{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 92px)}
+.btn.primary{background:var(--open);border-color:var(--open);color:#1a0b12;font-weight:700}
+.btn:focus-visible,.tab:focus-visible,.shelf button:focus-visible,.pin:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
 
-footer{position:fixed;left:0;right:0;bottom:0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 8px) max(16px,env(safe-area-inset-left,0px));
-  background:linear-gradient(rgba(10,15,34,0),var(--bg) 35%)}
-.yr{display:flex;align-items:center;gap:10px}
+/* 下の段 */
+#dock{position:fixed;left:0;right:0;bottom:0;z-index:4;background:linear-gradient(rgba(10,15,34,0),var(--bg) 18px);
+  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 8px) max(16px,env(safe-area-inset-left,0px))}
+.tabs{display:flex;gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px;width:max-content}
+.tab{border:none;background:transparent;border-radius:999px;padding:6px 14px;font-size:13px;color:var(--ink-2);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.pane{margin-top:8px;height:118px;overflow:auto}
+.tonight .row{display:flex;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12.5px;line-height:1.45;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0}
+.tonight .row b{color:var(--lamp);flex:none}
+.tonight .row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.none{font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.shelf{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
+.shelf button{flex:none;scroll-snap-align:start;width:132px;min-height:96px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.shelf button .town{font-size:10.5px;color:var(--ink-2);letter-spacing:.08em}
+.shelf button b{font-size:13px;line-height:1.3}
+.shelf button small{font-size:11px;margin-top:auto}
+.shelf button.lit{border-color:rgba(255,200,87,.7)}
+.shelf button.lit b::before{content:"● ";color:var(--lamp)}
+.shelf button.gone{opacity:.5}
+.find{display:flex;gap:8px}
+.find input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px}
+.find input:focus{outline:2px solid var(--lamp);outline-offset:1px}
+.hits{margin-top:6px;display:flex;flex-direction:column}
+.hits button{background:none;border:none;border-bottom:1px solid var(--line);padding:7px 0;text-align:left;cursor:pointer;display:flex;gap:8px;align-items:baseline;font-size:13px}
+.hits button small{color:var(--ink-2);font-size:11px;flex:none}
+.hits button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.artist-on{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:2px}
+.artist-on b{color:var(--lamp)}
+.yr{display:flex;align-items:center;gap:10px;margin-top:8px;position:relative}
+.yr label{font-size:12px;color:var(--ink-2)}
+.yr .track{flex:1;position:relative}
+.yr input{width:100%;accent-color:var(--lamp);height:26px;margin:0}
+.yr .ticks{position:absolute;left:8px;right:8px;top:-3px;height:4px;pointer-events:none}
+.yr .ticks i{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--lamp);transform:translateX(-50%)}
 .yr output{font-family:var(--num);font-weight:700;font-size:15px;min-width:44px;text-align:right}
-.yr input{flex:1;accent-color:var(--lamp);height:28px}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-2);margin:6px 0 4px}
-.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
-.tonight{font-size:12.5px;line-height:1.5;max-height:96px;overflow:auto;margin-top:2px;border-top:1px solid var(--line);padding-top:6px}
-.tonight .row{display:flex;gap:8px;align-items:baseline}
-.tonight .row b{color:var(--lamp);flex:none;font-weight:700}
-.tonight .row span{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tonight .none{color:var(--ink-2)}
-.credit{font-size:10px;color:var(--ink-2);margin-top:6px;display:flex;justify-content:space-between;gap:8px}
+.credit{font-size:10px;color:var(--ink-2);margin-top:2px;display:flex;justify-content:space-between;gap:8px}
 .credit a{color:var(--ink-2)}
 
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#101838;border-top:1px solid var(--line);border-radius:16px 16px 0 0;
-  padding:14px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));
-  transform:translateY(105%);transition:transform .3s ease;max-height:72%;overflow:auto}
-#sheet.on{transform:none}
-#sheet h2{margin:0 0 4px;font-size:16px}
-#sheet .addr{font-size:12px;color:var(--ink-2)}
-#sheet .floors{display:grid;gap:8px;margin-top:12px}
-#sheet .floor{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#0D1430;cursor:pointer}
-#sheet .floor .fl{font-family:var(--num);font-weight:700;width:68px;flex:none;white-space:nowrap;color:var(--ink-2)}
-#sheet .floor b{flex:1}
-#sheet .floor small{font-size:11px}
-#sheet .shows{margin-top:10px;font-size:13px;line-height:1.55}
-#sheet .shows div{padding:6px 0;border-bottom:1px solid var(--line)}
-#sheet .shows .d{font-family:var(--num);color:var(--ink-2);margin-right:6px}
-#sheet .close{position:absolute;right:12px;top:10px}
+/* ハコのカード（下の段の上に重ねる） */
+#card{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));z-index:6;
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.5);
+  bottom:calc(env(safe-area-inset-bottom,0px) + 12px);max-height:62%;overflow:auto;transform:translateY(calc(100% + 30px));transition:transform .28s ease}
+#card.on{transform:none}
+#card .head{display:flex;gap:10px;align-items:flex-start}
+#card h2{margin:0;font-size:17px;line-height:1.3;flex:1}
+#card .meta{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+#card .st{font-size:12px;font-weight:700}
 .st-open{color:var(--open)} .st-staff{color:var(--lamp)} .st-prep{color:var(--ink-2)}
+#card .night{margin-top:10px;font-size:13px;line-height:1.55;border-top:1px solid var(--line);padding-top:8px}
+#card .night .d{font-family:var(--num);color:var(--ink-2);margin-right:6px}
+#card .dates{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#card .dates button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-family:var(--num);font-size:12px;cursor:pointer}
+#card .dates button.cur{border-color:var(--lamp);color:var(--lamp)}
+#card .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+#card .floors{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+#card .floors button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}
+#card .floors button.cur{border-color:var(--ink)}
+
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s;z-index:9}
-#toast{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:8;max-width:80vw;text-align:center}
 #loading{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-2);font-size:13px}
+@media (prefers-reduced-motion: reduce){ #card,#fade{transition:none} }
 </style>
 </head>
 <body>
 <div id="stage"></div>
-<div id="labels"></div>
+<div id="pins"></div>
 <div id="loading">街の灯りを読み込んでいます…</div>
 
 <header>
@@ -96,55 +126,63 @@ footer{position:fixed;left:0;right:0;bottom:0;padding:10px max(16px,env(safe-are
     <div class="when" id="when">—</div>
     <div class="sub" id="sub"></div>
   </div>
-  <a class="btn" id="search" href="index.html#shows" aria-label="組・日付でさがす"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>さがす</a>
+  <button class="btn" id="searchBtn" type="button" aria-label="ハコ・組・日付でさがす"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>さがす</button>
 </header>
-<button class="btn" id="back" hidden>← 街に戻る</button>
 
-<footer>
-  <div class="legend">
-    <span><i style="background:var(--lamp)"></i>この夜に公演</span>
-    <span><i style="background:var(--open)"></i>入れる</span>
-    <span id="legend-staff"><i style="background:var(--ink-2)"></i>準備中</span>
+<section id="dock" aria-label="選ぶ">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-tonight" aria-selected="true" data-pane="tonight">今夜</button>
+    <button class="tab" role="tab" id="tab-venues" aria-selected="false" data-pane="venues">ハコ</button>
+    <button class="tab" role="tab" id="tab-artist" aria-selected="false" data-pane="artist">組・さがす</button>
   </div>
-  <div class="yr"><label for="year" style="font-size:12px;color:var(--ink-2)">年</label><input type="range" id="year" min="2000" max="2026" step="1"><output id="yearOut">—</output></div>
-  <div class="tonight" id="tonight"></div>
-  <div class="credit"><span>地図 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span><span id="gapnote">鶴舞は実際（約1.1km南）より近くに置いています</span></div>
-</footer>
+  <div class="pane tonight" id="pane-tonight"></div>
+  <div class="pane" id="pane-venues" hidden><div class="shelf" id="shelf"></div></div>
+  <div class="pane" id="pane-artist" hidden>
+    <div class="find"><input id="q" type="search" placeholder="組の名前・ハコ・日付（2015/8/1）" autocomplete="off"></div>
+    <div class="artist-on" id="artistOn" hidden></div>
+    <div class="hits" id="hits"></div>
+  </div>
+  <div class="yr"><label for="year">年</label><div class="track"><div class="ticks" id="ticks"></div><input type="range" id="year" min="2000" max="2026" step="1"></div><output id="yearOut">—</output></div>
+  <div class="credit"><span>地図 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span><span>鶴舞は実際（約1.1km南）より近くに置いています</span></div>
+</section>
 
-<div id="sheet" role="dialog" aria-modal="true"></div>
+<div id="card" role="dialog" aria-modal="false" aria-label="ハコ"></div>
 <div id="fade"></div>
-<div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="config.js"></script>
 <script>
 "use strict";
 /* ---------------------------------------------------------------- 設定
-   TOWN_MODE: "public"（共通DB の公開分だけ）／"private"（関係者用。window.TOWN_NIGHTS に台帳の分を入れて読み込む） */
+   TOWN_MODE: "public"（共通DB の公開分だけ）／"private"（関係者用。window.TOWN_NIGHTS・TOWN_PUBLIC を先に読み込む） */
 const MODE = window.TOWN_MODE || "public";
 const TOWN_URL = window.TOWN_URL || "town/town.json";
 const VENUE_PAGE = window.VENUE_PAGE || (id => "index.html#venue-" + id);
+const ARTIST_PAGE = window.ARTIST_PAGE || (id => "index.html#artist-" + id);
 const C = { bg:0x0A0F22, ground:0x0D1430, top:0x1A2450, side1:0x131B40, side2:0x0F1634, vtop:0x2B3670, vside1:0x1E2858, vside2:0x182048,
-  lamp:0xFFC857, open:0xFF5C7A, road:0x18214A, rail:0x2A3A70, station:0x7FB7FF };
+  lamp:0xFFC857, open:0xFF5C7A, road:0x18214A, rail:0x2A3A70, pick:0x3A4790 };
 const WD = "日月火水木金土";
 const today = new Date();
-const MD = String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+const pad = n => String(n).padStart(2, "0");
+const TODAY = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
 const THIS_YEAR = today.getFullYear();
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nk = s => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s\.\-・’'"“”!！ー☆★]/g, "");
 
-let T = null;            // 街
-const NIGHTS = {};       // ハコ key → Map(日付 → [{title, names}])
-const PUBLIC = new Set();// 公開分があるハコ key
-const LEDGER = new Set();// 台帳があるハコ key
-let year = THIS_YEAR - 1;
+let T = null;
+const NIGHTS = {};          // ハコ key → Map(日付 → [{title, names}])
+const PUBLIC = new Set(), LEDGER = new Set();
+const ARTISTS = new Map();  // 正規化した名前 → {name, hits: Map(ハコ key → [日付…])}
+let date = null;            // いま見ている夜（YYYY-MM-DD）
+let selected = null;        // 選んでいるハコ key
+let artist = null;          // 選んでいる組（ARTISTS の値）
 
 /* ---------------------------------------------------------------- データ */
 async function loadData(){
   T = await (await fetch(TOWN_URL)).json();
   for (const v of T.venues){ NIGHTS[v.key] = new Map(); if (v.ledger) LEDGER.add(v.key); }
   const byArc = new Map(T.venues.filter(v => v.arc).map(v => [v.arc, v.key]));
-  // 公開分（共通DB の pub_snapshot）。関係者用は組み込みのデータだけを使う
   if (window.TOWN_PUBLIC) for (const k of window.TOWN_PUBLIC) PUBLIC.add(k);
   if (MODE !== "private") try {
     const CFG = window.SITE_CONFIG;
@@ -153,74 +191,63 @@ async function loadData(){
     const s = await r.json();
     const names = new Map(s.artists.map(a => [a[0], a[1]]));
     const acts = new Map();
-    for (const a of s.acts){ if (!acts.has(a[1])) acts.set(a[1], []); acts.get(a[1]).push(a[3] || names.get(a[2]) || ""); }
+    for (const a of s.acts){ if (!acts.has(a[1])) acts.set(a[1], []); acts.get(a[1]).push({name:a[3] || names.get(a[2]) || "", id:a[2]}); }
     for (const x of s.shows){
       const k = byArc.get(x[2]); if (!k) continue;
       PUBLIC.add(k);
       const m = NIGHTS[k]; if (!m.has(x[1])) m.set(x[1], []);
-      m.get(x[1]).push({title:x[4] || "", names:(acts.get(x[0]) || []).filter(Boolean)});
+      const as = (acts.get(x[0]) || []).filter(a => a.name);
+      m.get(x[1]).push({title:x[4] || "", names:as.map(a => a.name), ids:as.map(a => a.id)});
     }
   } catch(e){ console.warn("公開分を読めませんでした", e); }
-  // 関係者用: 台帳の分（{key: {日付: [[公演名, 出演者…], …]}}）
   if (MODE === "private" && window.TOWN_NIGHTS){
     for (const [k, days] of Object.entries(window.TOWN_NIGHTS)){
       const m = NIGHTS[k] || (NIGHTS[k] = new Map());
-      for (const [d, evs] of Object.entries(days)){
-        if (m.has(d)) continue;   // 公開分があればそちら
-        m.set(d, evs.map(e => ({title:e[0] || "", names:e.slice(1)})));
-      }
+      for (const [d, evs] of Object.entries(days)) if (!m.has(d)) m.set(d, evs.map(e => ({title:e[0] || "", names:e.slice(1)})));
     }
   }
+  // 組の索引
+  for (const [k, m] of Object.entries(NIGHTS)) for (const [d, evs] of m) for (const e of evs) e.names.forEach((n, i) => {
+    const key = nk(n); if (!key) return;
+    let a = ARTISTS.get(key); if (!a){ a = {name:n, key, hits:new Map(), id:e.ids ? e.ids[i] : null}; ARTISTS.set(key, a); }
+    if (!a.hits.has(k)) a.hits.set(k, []);
+    const l = a.hits.get(k); if (l[l.length-1] !== d) l.push(d);
+  });
+  for (const a of ARTISTS.values()){ a.n = 0; for (const l of a.hits.values()){ l.sort(); a.n += l.length; } }
 }
-const state = k => PUBLIC.has(k) ? "open" : (MODE === "private" && NIGHTS[k] && NIGHTS[k].size) ? "staff" : LEDGER.has(k) ? "staff" : "prep";
+const state = k => PUBLIC.has(k) ? "open" : (MODE === "private" && NIGHTS[k] && NIGHTS[k].size) || LEDGER.has(k) ? "staff" : "prep";
 const STATE_LABEL = {open:"入れる", staff:"関係者だけ", prep:"準備中"};
-const yOf = s => s ? +String(s).slice(0,4) : null;
 const ymOf = s => s ? String(s).slice(0,7) : null;
-function aliveOn(v, date){   // その日に営業していたか（開店・閉店が分からなければ営業中とみなす）
-  if (v.open && ymOf(date) < (v.open.length === 4 ? v.open + "-01" : v.open)) return false;
-  if (v.close && ymOf(date) > v.close) return false;
+const V = k => T.venues.find(v => v.key === k);
+function aliveOn(v, d){
+  if (v.open && ymOf(d) < (v.open.length === 4 ? v.open + "-01" : v.open)) return false;
+  if (v.close && ymOf(d) > v.close) return false;
   return true;
 }
+const nightsAt = (k, d) => (aliveOn(V(k), d) && NIGHTS[k]?.get(d)) || null;
+const fmtD = d => { const t = new Date(d + "T00:00:00"); return `${d.slice(0,4)}.${+d.slice(5,7)}.${+d.slice(8,10)}（${WD[t.getDay()]}）`; };
 
 /* ---------------------------------------------------------------- 3D */
-let renderer, scene, camera, venueObj = {}, glow = {}, clock = new THREE.Clock();
-const view = {cx:0, cz:0, zoom:1, baseZoom:1};
-const EL = 0.86, AZ = -0.28;   // 見下ろす角度・向き（固定）
+let renderer, scene, camera, venueObj = {}, clock = new THREE.Clock();
+const view = {cx:0, cz:0, zoom:1, baseZoom:1, home:[0,0]};
+const EL = 0.86, AZ = -0.28;
 const DIR = new THREE.Vector3(Math.sin(AZ)*Math.cos(EL), Math.sin(EL), Math.cos(AZ)*Math.cos(EL));
-
 function shapeOf(pts){ const s = new THREE.Shape(); pts.forEach((p,i) => i ? s.lineTo(p[0], p[1]) : s.moveTo(p[0], p[1])); return s; }
 function colorize(geo, top, s1, s2){
   const n = geo.attributes.normal, cols = new Float32Array(n.count*3), c = new THREE.Color();
-  for (let i = 0; i < n.count; i++){
-    const ny = n.getY(i), nx = n.getX(i);
-    c.setHex(Math.abs(ny) > .7 ? top : (nx > 0 ? s1 : s2));
-    cols.set([c.r, c.g, c.b], i*3);
-  }
+  for (let i = 0; i < n.count; i++){ c.setHex(Math.abs(n.getY(i)) > .7 ? top : (n.getX(i) > 0 ? s1 : s2)); cols.set([c.r, c.g, c.b], i*3); }
   geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
 }
-function extrude(pts, h){
-  const g = new THREE.ExtrudeGeometry(shapeOf(pts), {depth:h, bevelEnabled:false});
-  g.rotateX(-Math.PI/2);   // 地図の (x, y) → 3D の (x, -z)、高さは +y
-  return g.toNonIndexed();
-}
+function extrude(pts, h){ const g = new THREE.ExtrudeGeometry(shapeOf(pts), {depth:h, bevelEnabled:false}); g.rotateX(-Math.PI/2); return g.index ? g.toNonIndexed() : g; }
 function mergeGeos(geos){
   let n = 0; geos.forEach(g => n += g.attributes.position.count);
   const pos = new Float32Array(n*3), col = new Float32Array(n*3); let o = 0;
   for (const g of geos){ pos.set(g.attributes.position.array, o*3); col.set(g.attributes.color.array, o*3); o += g.attributes.position.count; g.dispose(); }
   const m = new THREE.BufferGeometry(); m.setAttribute("position", new THREE.BufferAttribute(pos,3)); m.setAttribute("color", new THREE.BufferAttribute(col,3)); return m;
 }
-function windowTexture(){
-  const c = document.createElement("canvas"); c.width = 64; c.height = 64; const x = c.getContext("2d");
-  x.fillStyle = "#000"; x.fillRect(0,0,64,64);
-  x.fillStyle = "#fff";
-  for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) if ((r*7+k*3) % 5) x.fillRect(4+k*15, 6+r*15, 8, 7);
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
-}
-function glowTexture(){
-  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
-  const g = x.createRadialGradient(64,64,0,64,64,64); g.addColorStop(0,"rgba(255,255,255,1)"); g.addColorStop(.25,"rgba(255,255,255,.55)"); g.addColorStop(1,"rgba(255,255,255,0)");
-  x.fillStyle = g; x.fillRect(0,0,128,128); return new THREE.CanvasTexture(c);
-}
+function canvasTex(draw, w, h){ const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d")); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+const windowTex = () => canvasTex(x => { x.fillStyle = "#000"; x.fillRect(0,0,64,64); x.fillStyle = "#fff"; for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) if ((r*7+k*3) % 5) x.fillRect(4+k*15, 6+r*15, 8, 7); }, 64, 64);
+const glowTex = () => canvasTex(x => { const g = x.createRadialGradient(64,64,0,64,64,64); g.addColorStop(0,"rgba(255,255,255,1)"); g.addColorStop(.25,"rgba(255,255,255,.55)"); g.addColorStop(1,"rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0,0,128,128); }, 128, 128);
 
 function build(){
   renderer = new THREE.WebGLRenderer({antialias:true});
@@ -228,273 +255,249 @@ function build(){
   $("#stage").appendChild(renderer.domElement);
   scene = new THREE.Scene(); scene.background = new THREE.Color(C.bg);
   camera = new THREE.OrthographicCamera(-1,1,1,-1,1,6000);
-
-  // 島の地面
   for (const isl of T.islands){
-    const [x1,y1,x2,y2] = isl.box, pad = 18;
-    const g = new THREE.PlaneGeometry(x2-x1+pad*2, y2-y1+pad*2); g.rotateX(-Math.PI/2);
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:C.ground}));
-    m.position.set((x1+x2)/2, -0.2, -(y1+y2)/2); scene.add(m);
+    const [x1,y1,x2,y2] = isl.box, p = 18;
+    const g = new THREE.PlaneGeometry(x2-x1+p*2, y2-y1+p*2); g.rotateX(-Math.PI/2);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:C.ground})); m.position.set((x1+x2)/2, -0.2, -(y1+y2)/2); scene.add(m);
   }
-  // 道・線路（平たい帯）
-  const roadMat = new THREE.MeshBasicMaterial({color:C.road}), railMat = new THREE.MeshBasicMaterial({color:C.rail});
-  const strip = (pts, w, y) => {
-    const pos = [];
-    for (let i = 1; i < pts.length; i++){
-      const [ax, ay] = pts[i-1], [bx, by] = pts[i]; const dx = bx-ax, dy = by-ay, L = Math.hypot(dx,dy) || 1;
-      const nx = -dy/L*w/2, ny = dx/L*w/2;
-      const q = [[ax+nx,ay+ny],[bx+nx,by+ny],[bx-nx,by-ny],[ax-nx,ay-ny]];
-      for (const k of [0,1,2,0,2,3]) pos.push(q[k][0], y, -q[k][1]);
-    }
-    return pos;
-  };
-  let rp = []; for (const r of T.roads) rp = rp.concat(strip(r.p, r.w, 0));
-  const rg = new THREE.BufferGeometry(); rg.setAttribute("position", new THREE.Float32BufferAttribute(rp,3));
-  scene.add(new THREE.Mesh(rg, roadMat));
-  let lp = []; for (const r of T.rails) lp = lp.concat(strip(r.p, 6, 0.1));
-  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(lp,3));
-  scene.add(new THREE.Mesh(lg, railMat));
-
-  // ふつうの建物はまとめて1つに
+  const strip = (pts, w, y) => { const pos = [];
+    for (let i = 1; i < pts.length; i++){ const [ax, ay] = pts[i-1], [bx, by] = pts[i]; const dx = bx-ax, dy = by-ay, L = Math.hypot(dx,dy) || 1, nx = -dy/L*w/2, ny = dx/L*w/2;
+      const q = [[ax+nx,ay+ny],[bx+nx,by+ny],[bx-nx,by-ny],[ax-nx,ay-ny]]; for (const k of [0,1,2,0,2,3]) pos.push(q[k][0], y, -q[k][1]); }
+    return pos; };
+  const flat = (list, w, y, color) => { let p = []; for (const r of list) p = p.concat(strip(r.p, w || r.w, y));
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(p,3)); scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({color}))); };
+  flat(T.roads, 0, 0, C.road); flat(T.rails, 6, 0.1, C.rail);
   const geos = [];
-  T.buildings.forEach((b, i) => { if (b.venues) return; const g = extrude(b.p, b.h); colorize(g, C.top, C.side1, C.side2); geos.push(g); });
+  T.buildings.forEach(b => { if (b.venues) return; const g = extrude(b.p, b.h); colorize(g, C.top, C.side1, C.side2); geos.push(g); });
   scene.add(new THREE.Mesh(mergeGeos(geos), new THREE.MeshBasicMaterial({vertexColors:true})));
-
-  // ハコの建物（1棟ずつ。沈める・光らせるため）
-  const wt = windowTexture(), gt = glowTexture();
-  const byB = {};
+  const wt = windowTex(), gt = glowTex(), byB = {};
   for (const v of T.venues) if (v.bldg != null) (byB[v.bldg] = byB[v.bldg] || []).push(v);
   for (const [bi, vs] of Object.entries(byB)){
     const b = T.buildings[bi], h = Math.max(b.h, vs.some(v => v.landmark) ? 26 : 16);
     const g = extrude(b.p, h); colorize(g, C.vtop, C.vside1, C.vside2);
     const body = new THREE.Mesh(g, new THREE.MeshBasicMaterial({vertexColors:true}));
-    // 窓: 同じ形を少し大きくし、窓の模様を足し算で重ねる
-    const wg = extrude(b.p, h*0.92); const wm = new THREE.MeshBasicMaterial({map:wt, color:C.lamp, transparent:true, blending:THREE.AdditiveBlending, opacity:0, depthWrite:false});
-    // 側面の UV を高さと長さで振り直す
-    const pa = wg.attributes.position, uv = new Float32Array(pa.count*2);
+    const wg = extrude(b.p, h*0.92), pa = wg.attributes.position, uv = new Float32Array(pa.count*2);
     for (let i = 0; i < pa.count; i++){ uv[i*2] = (pa.getX(i) + pa.getZ(i)) / 9; uv[i*2+1] = pa.getY(i) / 6; }
     wg.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-    const win = new THREE.Mesh(wg, wm); win.scale.set(1.002, 1, 1.002);
+    const add = () => ({map:gt, color:C.lamp, transparent:true, blending:THREE.AdditiveBlending, opacity:0, depthWrite:false});
+    const win = new THREE.Mesh(wg, new THREE.MeshBasicMaterial({...add(), map:wt})); win.scale.set(1.002, 1, 1.002);
     const grp = new THREE.Group(); grp.add(body); grp.add(win);
     const cx = b.p.reduce((s,p) => s+p[0], 0)/b.p.length, cy = b.p.reduce((s,p) => s+p[1], 0)/b.p.length;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:gt, color:C.lamp, transparent:true, blending:THREE.AdditiveBlending, opacity:0, depthWrite:false}));
-    sp.scale.set(150, 150, 1); sp.position.set(cx, h*0.6, -cy);
-    // 地面にこぼれる明かり
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial(add())); sp.scale.set(150, 150, 1); sp.position.set(cx, h*0.6, -cy);
     const pg = new THREE.PlaneGeometry(170, 170); pg.rotateX(-Math.PI/2);
-    const pool = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({map:gt, color:C.lamp, transparent:true, blending:THREE.AdditiveBlending, opacity:0, depthWrite:false}));
-    pool.position.set(cx, 0.4, -cy);
-    scene.add(grp); scene.add(sp); scene.add(pool);
-    for (const v of vs){ venueObj[v.key] = {grp, win, sp, pool, h, cx, cy, bi:+bi}; }
+    const pool = new THREE.Mesh(pg, new THREE.MeshBasicMaterial(add())); pool.position.set(cx, 0.4, -cy);
+    // 選んだときの輪
+    const rg = new THREE.RingGeometry(26, 30, 48); rg.rotateX(-Math.PI/2);
+    const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({color:0xF2F0E6, transparent:true, opacity:0, depthWrite:false})); ring.position.set(cx, 0.6, -cy);
+    scene.add(grp, sp, pool, ring);
+    for (const v of vs) venueObj[v.key] = {grp, win, sp, pool, ring, body, h, cx, cy, bi:+bi};
   }
-  addLabels();
-  resize(); fit(); addEventListener("resize", () => { resize(); if (!focus && !anim) fit(); });
+  buildPins();
+  resize(); fit(); addEventListener("resize", () => { resize(); if (!selected && !anim) fit(); });
   renderer.setAnimationLoop(tick);
 }
-
-/* ---------------------------------------------------------------- カメラ */
-function resize(){
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h);
-  camera.left = -w/2; camera.right = w/2; camera.top = h/2; camera.bottom = -h/2; camera.updateProjectionMatrix();
-}
-function place(){
-  const t = new THREE.Vector3(view.cx, 0, view.cz);
-  camera.position.copy(t).addScaledVector(DIR, 2000); camera.lookAt(t); camera.zoom = view.zoom; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
-}
+function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.left = -w/2; camera.right = w/2; camera.top = h/2; camera.bottom = -h/2; camera.updateProjectionMatrix(); }
+function place(){ const t = new THREE.Vector3(view.cx, 0, view.cz); camera.position.copy(t).addScaledVector(DIR, 2000); camera.lookAt(t); camera.zoom = view.zoom; camera.updateProjectionMatrix(); camera.updateMatrixWorld(); }
+const TOP_PX = 110, BOTTOM_PX = () => ($("#dock").offsetHeight || 260);
 function fit(){
-  // 見せたいもの: ハコと新栄町駅（鶴舞駅は DAYTRIP の南 360m で外れるので入れない）
   const pts = T.venues.map(v => [v.x, v.y]).concat(T.landmarks.filter(l => l.island === "shinsakae").map(l => [l.x, l.y]));
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
-  const cx = (Math.min(...xs) + Math.max(...xs))/2, cy = (Math.min(...ys) + Math.max(...ys))/2;
-  view.cx = cx; view.cz = -cy; view.zoom = 1; place();
+  view.cx = (Math.min(...xs) + Math.max(...xs))/2; view.cz = -(Math.min(...ys) + Math.max(...ys))/2; view.zoom = 1; place();
   const p = new THREE.Vector3(); let mx = 0, my = 0;
   for (const [x,y] of pts){ p.set(x, 10, -y).project(camera); mx = Math.max(mx, Math.abs(p.x)); my = Math.max(my, Math.abs(p.y)); }
-  const top = 150, bottom = 190;   // 見出しと下のつまみの高さ（px）
-  const usable = (innerHeight - top - bottom) / innerHeight;
-  view.baseZoom = Math.min(0.80/mx, usable/my);
-  // 見出しとつまみのあいだの真ん中に来るよう、中心を少し下へずらす（画面の上下の差の半分）
-  view.zoom = view.baseZoom; place();
-  const shiftPx = (top - bottom) / 2;   // 上が狭ければ負
-  const up = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
-  const k = shiftPx / view.baseZoom;
-  view.cx += up.x * k; view.cz += up.z * k;
-  place();
-  T._c = [view.cx, view.cz];
+  const usable = (innerHeight - TOP_PX - BOTTOM_PX()) / innerHeight;
+  view.baseZoom = Math.min(0.84/mx, usable/my); view.zoom = view.baseZoom; place();
+  shiftCenter(view, (TOP_PX - BOTTOM_PX())/2, view.baseZoom); place();
+  view.home = [view.cx, view.cz];
 }
+function shiftCenter(o, px, zoom){ const up = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion); o.cx += up.x * px/zoom; o.cz += up.z * px/zoom; }
 let anim = null;
-function zoomTo(cx, cz, zoom, ms, done){
-  const s = {cx:view.cx, cz:view.cz, zoom:view.zoom}, t0 = performance.now();
-  anim = {s, e:{cx, cz, zoom}, t0, ms:Math.max(ms,1), done};
+function zoomTo(cx, cz, zoom, ms, done){ anim = {s:{cx:view.cx, cz:view.cz, zoom:view.zoom}, e:{cx, cz, zoom}, t0:performance.now(), ms:Math.max(ms,1), done}; }
+function focusVenue(k, ms){
+  const o = venueObj[k]; if (!o) return;
+  const z = view.baseZoom * 2.4, t = {cx:o.cx, cz:-o.cy};
+  // カードと下の段の分だけ上に見せる
+  shiftCenter(t, -(innerHeight*0.30) + TOP_PX/2, z);
+  zoomTo(t.cx, t.cz, z, ms ?? 650);
 }
+function home(ms){ zoomTo(view.home[0], view.home[1], view.baseZoom, ms ?? 600); }
 function tick(){
   const t = clock.getElapsedTime();
   if (anim){
     const k = Math.min(1, (performance.now() - anim.t0)/anim.ms), e = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k+2, 3)/2;
-    view.cx = anim.s.cx + (anim.e.cx - anim.s.cx)*e; view.cz = anim.s.cz + (anim.e.cz - anim.s.cz)*e; view.zoom = anim.s.zoom + (anim.e.zoom - anim.s.zoom)*e;
-    place();
+    for (const f of ["cx","cz","zoom"]) view[f] = anim.s[f] + (anim.e[f] - anim.s[f])*e; place();
     if (k >= 1){ const d = anim.done; anim = null; d && d(); }
   }
-  // 灯りのゆらぎ
-  for (const [k, o] of Object.entries(venueObj)){
-    if (!o.on) continue;
-    const f = 0.85 + 0.15*Math.sin(t*1.7 + o.bi);
-    o.win.material.opacity = 1.0*f; o.sp.material.opacity = 0.75*f; o.pool.material.opacity = 0.5*f;
-  }
-  // 沈む・浮かぶ
   for (const o of Object.values(venueObj)){
-    const target = o.alive ? 1 : 0.06; o.grp.scale.y += (target - o.grp.scale.y)*0.12;
+    const f = 0.85 + 0.15*Math.sin(t*1.7 + o.bi), on = o.on ? 1 : 0;
+    o.win.material.opacity = on*f; o.sp.material.opacity = on*0.75*f; o.pool.material.opacity = on*0.5*f;
+    o.ring.material.opacity += ((o.sel ? 0.9 : 0) - o.ring.material.opacity)*0.2;
+    o.grp.scale.y += ((o.alive ? 1 : 0.06) - o.grp.scale.y)*0.12;
   }
   renderer.render(scene, camera);
-  moveLabels();
+  movePins();
 }
 
-/* ---------------------------------------------------------------- 名札 */
-const LABELS = [];   // {el, x, y, h, group?, keys}
-let focus = null;    // 寄っているまとまり（"東桜" など）
-function addLabels(){
-  const box = $("#labels");
-  const mk = (cls, html, x, y, h, extra) => { const el = document.createElement("div"); el.className = "tag " + cls; el.innerHTML = html; box.appendChild(el); const L = {el, x, y, h, ...extra}; LABELS.push(L); return L; };
-  for (const isl of T.islands){ const [x1,y1,x2,y2] = isl.box; mk("island", esc(isl.name).split("").join(" "), (x1+x2)/2, y2 + 4, 0); }
-  for (const l of T.landmarks) mk("station", "● " + esc(l.name), l.x, l.y, 2);
-  // 東桜のまとまり・雲竜フレックスビル・ほかは1つずつ
-  const groups = {};
+/* ---------------------------------------------------------------- 地図の印 */
+const PINS = [], MARKS = [];
+function buildPins(){
+  const box = $("#pins");
+  for (const isl of T.islands){ const [x1,y1,x2,y2] = isl.box; const el = document.createElement("div"); el.className = "mark island"; el.textContent = isl.name; box.appendChild(el); MARKS.push({el, x:(x1+x2)/2, y:y2+6, h:0}); }
+  for (const l of T.landmarks){ const el = document.createElement("div"); el.className = "mark station"; el.textContent = "● " + l.name; box.appendChild(el); MARKS.push({el, x:l.x, y:l.y, h:2}); }
+  // 同じ建物のハコは印を横にずらす
+  const seen = {};
   for (const v of T.venues){
-    if (v.building === "unryu"){ (groups.unryu = groups.unryu || []).push(v); continue; }
-    if (v.cluster){ (groups["c:" + v.cluster] = groups["c:" + v.cluster] || []).push(v); }
-    const o = venueObj[v.key] || {h:16};
-    const L = mk("venue", "", v.x, v.y, o.h + 2, {keys:[v.key], venue:v, member:v.cluster ? "c:" + v.cluster : null});
-    L.el.onclick = () => tapVenue(v);
-  }
-  for (const [g, vs] of Object.entries(groups)){
-    const x = vs.reduce((s,v) => s+v.x, 0)/vs.length, y = vs.reduce((s,v) => s+v.y, 0)/vs.length;
-    const h = Math.max(...vs.map(v => (venueObj[v.key] || {h:16}).h)) + 4;
-    const L = mk("group", "", x, y, h, {keys:vs.map(v => v.key), group:g, vs});
-    L.el.onclick = () => g === "unryu" ? openBuilding(vs) : openCluster(g, vs);
-  }
-  refreshLabels();
-}
-function refreshLabels(){
-  const d = `${year}-${MD}`;
-  for (const L of LABELS){
-    if (L.venue){
-      const v = L.venue, st = state(v.key), lit = NIGHTS[v.key]?.has(d) && aliveOn(v, d);
-      L.el.className = "tag venue" + (lit ? " lit" : "") + (st === "open" ? " open" : "") + (aliveOn(v, d) ? "" : " gone");
-      L.el.innerHTML = `<b>${esc(v.name)}</b><small class="st-${st}">${aliveOn(v, d) ? STATE_LABEL[st] : (v.close && ymOf(d) > v.close ? "閉店" : "まだない")}</small>`;
-      L.hidden = !!L.member && focus !== L.member;
-    } else if (L.group){
-      const vs = L.vs.filter(v => aliveOn(v, d)); const lit = L.vs.some(v => NIGHTS[v.key]?.has(d) && aliveOn(v, d));
-      const anyOpen = L.vs.some(v => state(v.key) === "open");
-      let name;
-      if (L.group === "unryu"){ const ap = L.vs.find(v => v.key === "apollo"), sh = L.vs.find(v => v.key === "shangrila");
-        const sign = ymOf(d) >= "2022-09" ? "シャングリラ" : "APOLLO"; name = `雲竜フレックスビル<small style="color:var(--ink-2)">DIAMOND HALL・${sign} ほか</small>`; }
-      else name = `${esc(L.group.slice(2))} ${vs.length}軒`;
-      L.el.className = "tag group" + (lit ? " lit" : "") + (anyOpen ? " open" : "");
-      L.el.innerHTML = `<b>${L.group === "unryu" ? name.split("<small")[0] : name}</b>` + (L.group === "unryu" ? "<small" + name.split("<small")[1] : `<small>${anyOpen ? "入れる店あり" : "タップで寄る"}</small>`);
-      L.hidden = focus === L.group;
-    }
-    L.el.classList.toggle("hide", !!L.hidden);
+    const el = document.createElement("button"); el.type = "button"; el.className = "pin"; el.setAttribute("aria-label", v.name);
+    el.innerHTML = `<i></i><span></span>`; el.onclick = () => select(v.key);
+    box.appendChild(el);
+    const o = venueObj[v.key]; const n = o ? (seen[o.bi] = (seen[o.bi] || 0) + 1) - 1 : 0;
+    PINS.push({el, v, dx:n*16});
   }
 }
-const v3 = new THREE.Vector3();
-function moveLabels(){
-  for (const L of LABELS){
-    if (L.hidden) continue;
-    let h = L.h; if (L.venue && venueObj[L.venue.key]) h = venueObj[L.venue.key].h * venueObj[L.venue.key].grp.scale.y + 3;
-    v3.set(L.x, h, -L.y).project(camera);
-    L.el.style.left = ((v3.x+1)/2*innerWidth).toFixed(1) + "px"; L.el.style.top = ((1-v3.y)/2*innerHeight).toFixed(1) + "px";
+const pv = new THREE.Vector3();
+function movePins(){
+  const W = innerWidth, H = innerHeight;
+  for (const P of PINS){ const o = venueObj[P.v.key]; const h = o ? o.h*o.grp.scale.y + 4 : 6;
+    pv.set(o ? o.cx : P.v.x, h, -(o ? o.cy : P.v.y)).project(camera);
+    P.el.style.left = ((pv.x+1)/2*W + P.dx).toFixed(1) + "px"; P.el.style.top = ((1-pv.y)/2*H).toFixed(1) + "px"; }
+  for (const M of MARKS){ pv.set(M.x, M.h, -M.y).project(camera); M.el.style.left = ((pv.x+1)/2*W).toFixed(1) + "px"; M.el.style.top = ((1-pv.y)/2*H).toFixed(1) + "px"; }
+}
+function refreshPins(){
+  for (const P of PINS){
+    const v = P.v, k = v.key, alive = aliveOn(v, date), lit = !!nightsAt(k, date);
+    const hit = artist && artist.hits.has(k);
+    P.el.className = "pin" + (lit ? " lit" : "") + (state(k) === "open" ? " open" : "") + (alive ? "" : " gone") + (selected === k ? " sel" : "") + (hit ? " hit" : "");
+    const label = v.key === "apollo" && date >= "2022-09" ? v.name : v.name;
+    P.el.querySelector("span").innerHTML = esc(shortName(v)) + (hit ? `<b>${artist.hits.get(k).length}</b>` : "");
+    P.el.hidden = !!artist && !hit && !lit && selected !== k && !alive;
   }
 }
+const shortName = v => ({crr:"ROCK'N'ROLL", apollo:"APOLLO", diamond:"DIAMOND HALL", shangrila:"シャングリラ", daytrive:"DAYTRIVE", radseven:"RAD SEVEN", sunsetblue:"sunset BLUE", spadebox:"SPADE BOX", sixdog:"SiX-DOG", daytrip:"DAYTRIP"})[v.key] || v.name;
 
-/* ---------------------------------------------------------------- 年と夜 */
-function setYear(y){
-  year = y; $("#year").value = y; $("#yearOut").textContent = y;
-  const d = `${y}-${MD}`, dt = new Date(d + "T00:00:00");
-  $("#when").innerHTML = `${y}.${MD.replace("-", ".")}<span>${THIS_YEAR - y ? (THIS_YEAR - y) + "年前の今夜" : "今夜"}（${WD[dt.getDay()]}）</span>`;
-  const lit = [];
-  for (const v of T.venues){
-    const o = venueObj[v.key]; const alive = aliveOn(v, d);
-    if (o){
-      // 同じ建物の別のハコ（雲竜）: どれか営業していれば立てる
-      const same = T.venues.filter(w => venueObj[w.key] === o);
-      o.alive = same.some(w => aliveOn(w, d));
-      const on = same.some(w => NIGHTS[w.key]?.has(d) && aliveOn(w, d));
-      o.on = on; if (!on){ o.win.material.opacity = 0; o.sp.material.opacity = 0; o.pool.material.opacity = 0; }
-    }
-    if (alive && NIGHTS[v.key]?.has(d)) for (const e of NIGHTS[v.key].get(d)) lit.push({v, e});
-  }
-  $("#tonight").innerHTML = lit.length
-    ? lit.map(({v, e}) => `<div class="row"><b>${esc(v.name)}</b><span>${esc(e.title || "")}${e.names.length ? (e.title ? "｜" : "") + esc(e.names.slice(0,6).join(" / ")) + (e.names.length > 6 ? " ほか" : "") : ""}</span></div>`).join("")
-    : `<div class="none">この夜の公演の記録はありません。年を動かしてみてください。</div>`;
-  const nOpen = T.venues.filter(v => state(v.key) === "open").length;
-  $("#sub").textContent = `${lit.length ? lit.length + " 公演" : "公演なし"} ・ 入れるハコ ${nOpen} 軒`;
-  refreshLabels();
+/* ---------------------------------------------------------------- 夜を決める */
+function setDate(d, keepYearSlider){
+  date = d;
+  const y = +d.slice(0,4);
+  $("#year").value = y; $("#yearOut").textContent = y;
+  const ago = THIS_YEAR - y;
+  const sameMD = d.slice(5) === TODAY.slice(5);
+  $("#when").innerHTML = `${fmtD(d)}<span>${sameMD ? (ago ? ago + "年前の今夜" : "今夜") : ""}</span>`;
+  for (const v of T.venues){ const o = venueObj[v.key]; if (!o) continue;
+    const same = T.venues.filter(w => venueObj[w.key] === o);
+    o.alive = same.some(w => aliveOn(w, d)); o.on = same.some(w => nightsAt(w.key, d)); o.sel = same.some(w => w.key === selected); }
+  const lit = T.venues.flatMap(v => (nightsAt(v.key, d) || []).map(e => ({v, e})));
+  $("#pane-tonight").innerHTML = lit.length
+    ? lit.map(({v, e}) => `<button type="button" class="row" data-k="${v.key}"><b>${esc(shortName(v))}</b><span>${esc(e.title || "")}${e.names.length ? (e.title ? "｜" : "") + esc(e.names.slice(0,6).join(" / ")) + (e.names.length > 6 ? " ほか" : "") : ""}</span></button>`).join("")
+    : `<div class="none">この夜の公演の記録はありません。年のつまみを動かすか、「組・さがす」で組や日付から探してください。</div>`;
+  $("#pane-tonight").querySelectorAll(".row").forEach(b => b.onclick = () => select(b.dataset.k));
+  $("#sub").textContent = artist ? `「${artist.name}」の出たハコを光らせています` : `${lit.length ? lit.length + " 公演" : "公演の記録なし"} ・ 入れるハコ ${T.venues.filter(v => state(v.key) === "open").length} 軒`;
+  if (artist) for (const v of T.venues){ const o = venueObj[v.key]; if (o && artist.hits.has(v.key)) o.on = true; }
+  refreshPins(); renderShelf(); if (selected) renderCard();
 }
+const setYear = y => setDate(`${y}-${TODAY.slice(5)}`);
 function firstYear(){
-  // 今日と同じ月日に公演があった、いちばん近い年
-  for (let y = THIS_YEAR; y >= 2000; y--){
-    const d = `${y}-${MD}`;
-    if (T.venues.some(v => NIGHTS[v.key]?.has(d) && aliveOn(v, d) && (y < THIS_YEAR || d <= today.toISOString().slice(0,10)))) return y;
-  }
+  for (let y = THIS_YEAR; y >= 2000; y--){ const d = `${y}-${TODAY.slice(5)}`; if (d <= TODAY && T.venues.some(v => nightsAt(v.key, d))) return y; }
   return THIS_YEAR - 1;
 }
 
-/* ---------------------------------------------------------------- 入店・まとまり */
-function toast(msg){ const t = $("#toast"); t.textContent = msg; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 2200); }
-function tapVenue(v){
-  const d = `${year}-${MD}`, st = state(v.key);
-  if (v.landmark && !v.arc){ toast(`${v.name} は目印です（公演の記録はまだありません）`); return; }
-  if (st === "open"){ enter(v); return; }
-  if (st === "staff" && MODE === "private"){ showVenueSheet(v); return; }
-  toast(st === "staff" ? `${v.name} は関係者だけが見られます` : `${v.name} は準備中です`);
+/* ---------------------------------------------------------------- 下の段 */
+function showPane(p){
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.pane === p));
+  for (const n of ["tonight", "venues", "artist"]) $("#pane-" + n).hidden = n !== p;
+  if (p === "artist") setTimeout(() => $("#q").focus(), 50);
+}
+function renderShelf(){
+  const vs = [...T.venues].sort((a,b) => (a.island === b.island ? a.x - b.x : a.island === "shinsakae" ? -1 : 1));
+  $("#shelf").innerHTML = vs.map(v => { const k = v.key, st = state(k), alive = aliveOn(v, date), lit = !!nightsAt(k, date);
+    const town = v.island === "tsurumai" ? "鶴舞" : v.cluster || (v.building === "unryu" ? "雲竜フレックスビル" : "新栄");
+    return `<button type="button" data-k="${k}" class="${lit ? "lit" : ""}${alive ? "" : " gone"}"><span class="town">${esc(town)}</span><b>${esc(v.name)}</b>
+      <small class="st-${st}">${v.landmark && !v.arc ? "目印" : alive ? STATE_LABEL[st] : (v.close && ymOf(date) > v.close ? "閉店" : "まだない")}${artist && artist.hits.has(k) ? ` ・ ${artist.hits.get(k).length}回` : ""}</small></button>`; }).join("");
+  $("#shelf").querySelectorAll("button").forEach(b => b.onclick = () => select(b.dataset.k));
+}
+function search(q){
+  const s = q.trim(), out = [];
+  if (!s){ $("#hits").innerHTML = artist ? "" : `<div class="none">組の名前を打つと、その組が出たハコが光ります。ハコの名前や日付（2015/8/1）でも探せます。</div>`; return; }
+  const m = s.match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/);
+  if (m) out.push({kind:"日付", label:`${m[1]}.${+m[2]}.${+m[3]} の夜`, go:() => { setDate(`${m[1]}-${pad(m[2])}-${pad(m[3])}`); showPane("tonight"); }});
+  const key = nk(s);
+  for (const v of T.venues) if (nk(v.name).includes(key) || nk(shortName(v)).includes(key)) out.push({kind:"ハコ", label:v.name, go:() => select(v.key)});
+  const as = [...ARTISTS.values()].filter(a => a.key.includes(key)).sort((a,b) => (a.key.startsWith(key) ? 0 : 1) - (b.key.startsWith(key) ? 0 : 1) || b.n - a.n).slice(0, 30);
+  for (const a of as) out.push({kind:`組・${a.n}回`, label:a.name, go:() => pickArtist(a)});
+  $("#hits").innerHTML = out.length ? out.map((h, i) => `<button type="button" data-i="${i}"><small>${esc(h.kind)}</small><span>${esc(h.label)}</span></button>`).join("") : `<div class="none">見つかりませんでした。</div>`;
+  $("#hits").querySelectorAll("button").forEach(b => b.onclick = () => out[+b.dataset.i].go());
+}
+function pickArtist(a){
+  artist = a; closeCard(true);
+  const on = $("#artistOn"); on.hidden = false;
+  on.innerHTML = `<b>${esc(a.name)}</b><span style="color:var(--ink-2)">${a.hits.size} 軒・${a.n} 回</span><button type="button" class="btn" id="clearArtist" style="margin-left:auto;padding:5px 10px">やめる</button>`;
+  $("#clearArtist").onclick = clearArtist;
+  $("#q").value = ""; $("#hits").innerHTML = "";
+  // 年のつまみに出た年の印
+  const years = new Set(); for (const l of a.hits.values()) for (const d of l) years.add(+d.slice(0,4));
+  const lo = +$("#year").min, hi = +$("#year").max;
+  $("#ticks").innerHTML = [...years].map(y => `<i style="left:${((y-lo)/(hi-lo)*100).toFixed(2)}%"></i>`).join("");
+  // いちばん最近に出た夜へ
+  const last = [...a.hits.values()].flat().sort().pop(); setDate(last);
+  home();
+}
+function clearArtist(){ artist = null; $("#artistOn").hidden = true; $("#ticks").innerHTML = ""; search(""); setDate(date); }
+
+/* ---------------------------------------------------------------- カード */
+function select(k){
+  selected = k; const v = V(k);
+  // 同じ建物のほかの階も見せる
+  setDate(date); renderCard(); $("#card").classList.add("on"); focusVenue(k);
+}
+function closeCard(keepView){ selected = null; $("#card").classList.remove("on"); setDate(date); if (!keepView) home(); }
+function renderCard(){
+  const v = V(selected), k = v.key, st = state(k), alive = aliveOn(v, date), evs = nightsAt(k, date);
+  const floors = v.building ? T.venues.filter(w => w.building === v.building) : [];
+  const years = v.open || v.close ? `${v.open ? v.open.replace("-", "年") + "月" : "?"}〜${v.close ? v.close.replace("-", "年") + "月" : ""}`.replace(/年(\d)月/, "年$1月").replace(/^(\d{4})月/, "$1年") : "";
+  let body = "";
+  if (artist && artist.hits.has(k)){
+    const ds = artist.hits.get(k);
+    body = `<div class="night"><b style="color:var(--lamp)">${esc(artist.name)}</b> がここに出た夜（${ds.length}回）<div class="dates">${ds.map(d => `<button type="button" data-d="${d}" class="${d === date ? "cur" : ""}">${d.replaceAll("-", ".")}</button>`).join("")}</div></div>`;
+  }
+  body += evs ? `<div class="night">${evs.map(e => `<div><span class="d">${fmtD(date)}</span>${esc(e.title)}${e.names.length ? `<br><span style="color:var(--ink-2)">${esc(e.names.join(" / "))}</span>` : ""}</div>`).join("")}</div>`
+              : `<div class="night none">${alive ? "この夜の公演の記録はありません。" : v.close && ymOf(date) > v.close ? "この年にはもう閉店しています。" : "この年にはまだありません。"}</div>`;
+  const total = NIGHTS[k]?.size || 0;
+  const canEnter = st === "open" || v.page;
+  $("#card").innerHTML = `<div class="head"><div style="flex:1;min-width:0"><h2>${esc(v.name)}</h2>
+      <div class="meta">${esc(v.addr || "")}${years ? "・" + esc(years) : ""}</div>
+      <div class="meta"><span class="st st-${st}">${v.landmark && !v.arc ? "目印（公演の記録はまだありません）" : STATE_LABEL[st]}</span>${total ? `・記録 ${total} 夜` : ""}</div></div>
+      <button type="button" class="btn" id="cardClose" aria-label="閉じる">✕</button></div>
+    ${floors.length > 1 ? `<div class="floors">${floors.map(w => `<button type="button" data-k="${w.key}" class="${w.key === k ? "cur" : ""}">${esc(w.floor || "")} ${esc(shortName(w))}</button>`).join("")}</div>` : ""}
+    ${body}
+    <div class="acts">${canEnter ? `<button type="button" class="btn primary" id="enter">入る</button>` : `<span class="meta">${st === "staff" ? "関係者だけが見られます" : "準備中です"}</span>`}
+      ${artist && artist.id && ARTIST_PAGE ? `<a class="btn" href="${ARTIST_PAGE(artist.id)}">${esc(artist.name)} のページ</a>` : ""}</div>`;
+  $("#cardClose").onclick = () => closeCard();
+  $("#card").querySelectorAll(".floors button").forEach(b => b.onclick = () => select(b.dataset.k));
+  $("#card").querySelectorAll(".dates button").forEach(b => b.onclick = () => setDate(b.dataset.d));
+  const en = $("#enter"); if (en) en.onclick = () => enter(v);
 }
 function enter(v){
   const o = venueObj[v.key] || {cx:v.x, cy:v.y};
-  $("#sheet").classList.remove("on");
+  $("#card").classList.remove("on");
   zoomTo(o.cx, -o.cy, view.baseZoom*7, 1400);
   setTimeout(() => $("#fade").style.opacity = 1, 900);
-  setTimeout(() => { location.href = VENUE_PAGE(v.arc, v); }, 1450);
-}
-function openCluster(g, vs){
-  focus = g; refreshLabels();
-  const x = vs.reduce((s,v) => s+v.x, 0)/vs.length, y = vs.reduce((s,v) => s+v.y, 0)/vs.length;
-  zoomTo(x, -y, view.baseZoom*3.2, 700); $("#back").hidden = false;
-}
-function back(){
-  focus = null; refreshLabels(); $("#back").hidden = true; $("#sheet").classList.remove("on");
-  zoomTo(T._c[0], T._c[1], view.baseZoom, 600);
-}
-function openBuilding(vs){
-  const d = `${year}-${MD}`;
-  const order = ["diamond", "apollo", "shangrila", "spadebox"];
-  vs = [...vs].sort((a,b) => order.indexOf(a.key) - order.indexOf(b.key));
-  const sh = $("#sheet");
-  sh.innerHTML = `<button class="btn close" onclick="document.querySelector('#sheet').classList.remove('on')">閉じる</button>
-    <h2>雲竜フレックスビル</h2><div class="addr">新栄2-1-9。階を選んでください</div>
-    <div class="floors">${vs.map(v => { const st = state(v.key), alive = aliveOn(v, d), lit = alive && NIGHTS[v.key]?.has(d);
-      return `<div class="floor" data-k="${v.key}"><span class="fl">${esc(v.floor || "")}</span><b>${lit ? "● " : ""}${esc(v.name)}</b>
-      <small class="st-${st}">${v.landmark && !v.arc ? "目印" : alive ? STATE_LABEL[st] : (v.close && ymOf(d) > v.close ? "閉店" : "まだない")}</small></div>`; }).join("")}</div>`;
-  sh.querySelectorAll(".floor").forEach(el => el.onclick = () => tapVenue(T.venues.find(v => v.key === el.dataset.k)));
-  sh.classList.add("on");
-}
-function showVenueSheet(v){
-  const m = NIGHTS[v.key], ys = [...m.keys()].filter(d => d.startsWith(year + "-")).sort();
-  const sh = $("#sheet");
-  sh.innerHTML = `<button class="btn close" onclick="document.querySelector('#sheet').classList.remove('on')">閉じる</button>
-    <h2>${esc(v.name)}</h2><div class="addr">${esc(v.addr || "")}・<span class="st-staff">関係者だけ</span>・${year}年 ${ys.length} 公演</div>
-    <div class="shows">${ys.slice(0,400).map(d => m.get(d).map(e => `<div><span class="d">${d.slice(5).replace("-", "/")}</span>${esc(e.title)}${e.names.length ? " ｜ " + esc(e.names.join(" / ")) : ""}</div>`).join("")).join("") || "この年の記録はありません"}</div>`;
-  sh.classList.add("on");
+  // 自前のアーカイブがあるハコ（SiX-DOG）はそちらへ。その夜に公演があればその日のページ、なければ会場（3D）
+  const url = v.night_page && NIGHTS[v.key]?.has(date) ? v.night_page.replace("{date}", date) : (v.page || VENUE_PAGE(v.arc, v));
+  setTimeout(() => { location.href = url; }, 1450);
 }
 
 /* ---------------------------------------------------------------- はじめ */
 (async () => {
   try { await loadData(); } catch(e){ $("#loading").textContent = "街のデータを読めませんでした"; console.error(e); return; }
   $("#year").max = THIS_YEAR;
-  if (MODE === "private"){ $("#legend-staff").innerHTML = `<i style="background:var(--lamp)"></i>関係者だけ`; }
   build();
-  setYear(firstYear());
+  setYear(firstYear()); search("");
   $("#loading").remove();
   $("#year").addEventListener("input", e => setYear(+e.target.value));
-  $("#back").onclick = back;
-  addEventListener("pageshow", e => { if (e.persisted){ $("#fade").style.opacity = 0; back(); } });
+  document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPane(t.dataset.pane));
+  $("#searchBtn").onclick = () => showPane("artist");
+  $("#q").addEventListener("input", e => search(e.target.value));
+  addEventListener("keydown", e => { if (e.key === "Escape" && selected) closeCard(); });
+  addEventListener("pageshow", e => { if (e.persisted){ $("#fade").style.opacity = 0; home(0); } });
 })();
 </script>
 </body>
