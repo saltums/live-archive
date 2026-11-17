@@ -14,3 +14,4 @@ GitHub Pages に置く公開サイト。設計は `system-map/設計_公開サ�
 - 公開の地図は共通DB の `pub_snapshot()` と `town/nights.json`（地図のハコの全公演。台帳の分を含む。2026-11-17 に「知り合いにしか見せないので入れてよい」と決めた）を読む。`python -I -X utf8 venue-ledger/tools/build_town_private.py` が nights.json と関係者用（Claude の中のページ）の両方を作る
 - nights.json の出演は `acts`（[組の番号, 表示名] の表）への番号。`pages` は専用ページのある組（公開段階 full で slug のある組 → `artists/<slug>/`）、`alias` はほかの呼び名
 - 外からのリンク: `map.html?d=2016-05-22&v=crr&a=1263`（日付・ハコの key・組の番号。どれも省ける）。バンドのページ（band-sites/kit/build_site.py）は、地図にあるハコでの出演に「この夜の街を見る」を付ける
+- `bands.html`（バンドの棚）… 街の地図と並ぶ、組の側の入口。`town/nights.json` から組ごとの足あと（年ごとの帯）を数える。専用ページのある組（pages）は上にカードで出る。地図の「組・さがす」から行ける

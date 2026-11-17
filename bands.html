@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>バンドの棚</title>
+<meta name="description" content="名古屋・新栄と鶴舞のライブハウスに出た組の一覧。どの年に街にいたかが帯で分かります。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* 街の地図（map.html）と同じ夜の配色。組ごとに「足あとの帯」（年ごとの灯り）を並べる */
+:root{
+  --bg:#0A0F22; --panel:#101838; --panel-2:#0D1430; --ink:#F2F0E6; --ink-2:#A6AEC6; --lamp:#FFC857; --open:#FF5C7A;
+  --line:rgba(166,174,198,.22); --cell:rgba(166,174,198,.10);
+  --sans:"Zen Kaku Gothic New",system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;
+  --num:"Space Grotesk","Zen Kaku Gothic New",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(14px + env(safe-area-inset-top,0px)) calc(48px + env(safe-area-inset-bottom,0px))}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+.wrap{max-width:860px;margin:0 auto}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 13px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--lamp);border-color:var(--lamp);color:#1b1503;font-weight:700}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+h1{font-size:26px;line-height:1.25;margin:22px 0 4px;font-weight:700;letter-spacing:.02em;text-wrap:balance}
+.lead{color:var(--ink-2);font-size:13.5px;margin:0 0 6px;max-width:42em}
+h2{font-size:13px;font-weight:700;color:var(--ink-2);letter-spacing:.12em;margin:34px 0 10px}
+.num{font-family:var(--num)}
+
+/* 足あとの帯: 1こま = 1年。出た夜が多いほど明るい */
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;min-width:0}
+.strip i{height:10px;border-radius:2px;background:var(--cell)}
+.strip i.l1{background:rgba(255,200,87,.38)}
+.strip i.l2{background:rgba(255,200,87,.68)}
+.strip i.l3{background:var(--lamp);box-shadow:0 0 6px rgba(255,200,87,.55)}
+.axis{display:flex;justify-content:space-between;font-family:var(--num);font-size:10.5px;color:var(--ink-2);margin-top:3px}
+
+/* くわしい記録のある組 */
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-size:19px;line-height:1.3;font-weight:700}
+.card .meta{font-size:12.5px;color:var(--ink-2)}
+.card .meta b{color:var(--lamp);font-family:var(--num);font-weight:700}
+.card .strip i{height:16px;border-radius:3px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--ink-2)}
+.chip b{font-family:var(--num);color:var(--ink);font-weight:500;margin-left:4px}
+.card .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:4px}
+
+/* すべての組 */
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:8px 0;z-index:5}
+.tools input[type=search]{flex:1 1 220px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:10px 16px;font-size:15px}
+.tools select{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:9px 12px;font-size:13px;max-width:100%}
+.count{font-size:12.5px;color:var(--ink-2);margin:4px 0 6px}
+.rows{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 54px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);text-decoration:none}
+.row:hover{background:var(--panel-2)}
+.row .nm{min-width:0;overflow-wrap:anywhere;font-weight:500;line-height:1.35}
+.row .nm small{display:block;color:var(--ink-2);font-size:11.5px;font-weight:400}
+.row .nm .pg{color:var(--lamp);font-size:11px;border:1px solid rgba(255,200,87,.5);border-radius:999px;padding:0 7px;margin-left:6px;white-space:nowrap}
+.row .n{font-family:var(--num);text-align:right;font-size:15px}
+.row .n small{font-size:10.5px;color:var(--ink-2);font-family:var(--sans);margin-left:1px}
+.more{display:flex;justify-content:center;margin:16px 0}
+.none{color:var(--ink-2);padding:22px 4px;font-size:13.5px}
+.foot{color:var(--ink-2);font-size:12px;margin-top:30px;line-height:1.7}
+@media (max-width:560px){
+  h1{font-size:22px}
+  .row{grid-template-columns:minmax(0,1fr) 54px;gap:4px 10px}
+  .row .strip{grid-column:1 / -1;grid-row:2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="btn" href="map.html">← 街の地図</a>
+    <a class="btn" href="index.html">ライブハウスとバンドの記録</a>
+  </div>
+  <h1>バンドの棚</h1>
+  <p class="lead" id="lead">読み込んでいます…</p>
+
+  <section id="featSec" hidden>
+    <h2>くわしい記録のある組</h2>
+    <div class="feat" id="feat"></div>
+  </section>
+
+  <section>
+    <h2>すべての組</h2>
+    <div class="tools">
+      <input id="q" type="search" placeholder="組の名前でさがす" autocomplete="off" aria-label="組の名前でさがす">
+      <select id="fv" aria-label="ハコでしぼる"><option value="">どのハコでも</option></select>
+      <select id="fs" aria-label="並べ方">
+        <option value="n">出た夜が多い順</option>
+        <option value="last">最近まで出ていた順</option>
+        <option value="first">早くから出ていた順</option>
+        <option value="name">名前順</option>
+      </select>
+    </div>
+    <div class="count" id="count"></div>
+    <div class="rows" id="rows"></div>
+    <div class="more"><button type="button" class="btn" id="more" hidden>さらに表示</button></div>
+  </section>
+
+  <p class="foot">新栄・鶴舞の地図にあるハコの公演記録から数えています。同じ名前の別の組や、大学サークルのコピーバンドが混ざっていることがあります。組を押すと、街の地図でその組が出たハコが光ります。</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nk = s => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s\.\-・’'"“”!！ー☆★]/g, "");
+const THIS_YEAR = new Date().getFullYear();
+let ALL = [], VN = {}, PAGES = {}, Y0 = 2000, shown = 0, cur = [];
+const STEP = 80;
+
+// 街の地図で、その組を選んだ状態で開く（番号のない出演は名前で）
+const mapUrl = a => "map.html?" + (a.id ? "a=" + a.id : "n=" + encodeURIComponent(a.name));
+const lv = c => !c ? "" : c <= 2 ? "l1" : c <= 5 ? "l2" : "l3";
+const strip = a => { let h = ""; for (let y = Y0; y <= THIS_YEAR; y++) h += `<i class="${lv(a.years[y])}"></i>`; return `<div class="strip" role="img" aria-label="${a.first}年から${a.last}年">${h}</div>`; };
+const span = a => a.first === a.last ? `${a.first}年` : `${a.first}〜${a.last}年`;
+const topVenues = (a, n) => Object.entries(a.hits).sort((x, y) => y[1] - x[1]).slice(0, n);
+
+async function load(){
+  const j = await (await fetch("town/nights.json")).json();
+  const A = j.acts || [], M = new Map(), alias = j.alias || {};
+  VN = Object.fromEntries(j.venues || []); PAGES = j.pages || {};
+  let minY = THIS_YEAR;
+  for (const [k, days] of Object.entries(j.nights || {})) for (const [d, evs] of Object.entries(days)){
+    const y = +d.slice(0, 4), seen = new Set();
+    for (const e of evs) for (const i of e.slice(1)){
+      const p = A[i]; if (!p || !p[1]) continue;
+      const key = p[0] ? "#" + p[0] : nk(p[1]); if (!key || seen.has(key)) continue; seen.add(key);   // 同じ夜・同じハコは1回と数える
+      let a = M.get(key); if (!a){ a = {id:p[0] || 0, seen:{}, hits:{}, years:{}, n:0, first:y, last:y}; M.set(key, a); }
+      a.seen[p[1]] = (a.seen[p[1]] || 0) + 1; a.hits[k] = (a.hits[k] || 0) + 1; a.years[y] = (a.years[y] || 0) + 1; a.n++;
+      if (y < a.first) a.first = y; if (y > a.last) a.last = y; if (y < minY) minY = y;
+    }
+  }
+  Y0 = Math.min(minY, 2000);
+  for (const a of M.values()){
+    const al = (a.id && alias[a.id]) || [];
+    a.name = al[0] || Object.entries(a.seen).sort((x, y) => y[1] - x[1])[0][0];
+    a.keys = [...new Set([...Object.keys(a.seen), ...al].map(nk))].filter(Boolean);
+    a.sort = nk(a.name); a.page = a.id && PAGES[a.id] || null;
+  }
+  ALL = [...M.values()];
+}
+
+function renderFeat(){
+  const fs = ALL.filter(a => a.page).sort((x, y) => y.n - x.n);
+  if (!fs.length) return;
+  $("#featSec").hidden = false;
+  $("#feat").innerHTML = fs.map(a => `<article class="card">
+    <h3>${esc(a.name)}</h3>
+    <div class="meta">新栄・鶴舞で <b>${a.n}</b> 夜・${span(a)}</div>
+    <div>${strip(a)}<div class="axis"><span>${Y0}</span><span>${THIS_YEAR}</span></div></div>
+    <div class="chips">${topVenues(a, 4).map(([k, c]) => `<span class="chip">${esc(VN[k] || k)}<b>${c}</b></span>`).join("")}</div>
+    <div class="acts"><a class="btn primary" href="${esc(a.page)}">記録を読む</a><a class="btn" href="${mapUrl(a)}">街で足あとを見る</a></div>
+  </article>`).join("");
+}
+
+function apply(){
+  const key = nk($("#q").value), v = $("#fv").value, s = $("#fs").value;
+  cur = ALL.filter(a => (!key || a.keys.some(x => x.includes(key))) && (!v || a.hits[v]));
+  const cmp = {n:(x, y) => (v ? y.hits[v] - x.hits[v] : 0) || y.n - x.n || (x.sort < y.sort ? -1 : 1),
+               last:(x, y) => y.last - x.last || y.n - x.n, first:(x, y) => x.first - y.first || y.n - x.n,
+               name:(x, y) => x.sort < y.sort ? -1 : x.sort > y.sort ? 1 : 0}[s];
+  cur.sort(cmp);
+  if (key) cur.sort((x, y) => (x.keys.some(k => k.startsWith(key)) ? 0 : 1) - (y.keys.some(k => k.startsWith(key)) ? 0 : 1));
+  shown = 0; $("#rows").innerHTML = "";
+  $("#count").textContent = cur.length ? `${cur.length.toLocaleString()} 組` : "";
+  if (!cur.length) $("#rows").innerHTML = `<div class="none">見つかりませんでした。書き方を変えて試してください（かな・英字・略した呼び名など）。</div>`;
+  more();
+}
+function more(){
+  const v = $("#fv").value;
+  const part = cur.slice(shown, shown + STEP); shown += part.length;
+  $("#rows").insertAdjacentHTML("beforeend", part.map(a => { const tv = topVenues(a, 2), c = v ? a.hits[v] : a.n;
+    return `<a class="row" href="${mapUrl(a)}"><span class="nm">${esc(a.name)}${a.page ? `<span class="pg">記録あり</span>` : ""}<small>${span(a)}・${tv.map(([k]) => esc(VN[k] || k)).join("、")}${Object.keys(a.hits).length > 2 ? " ほか" : ""}</small></span>${strip(a)}<span class="n">${c}<small>夜</small></span></a>`; }).join(""));
+  $("#more").hidden = shown >= cur.length;
+  if (shown < cur.length) $("#more").textContent = `さらに表示（残り ${(cur.length - shown).toLocaleString()} 組）`;
+}
+
+(async () => {
+  try { await load(); } catch(e){ $("#lead").textContent = "記録を読めませんでした。時間をおいて開き直してください。"; console.error(e); return; }
+  const used = Object.keys(VN).filter(k => ALL.some(a => a.hits[k]));
+  $("#lead").textContent = `新栄・鶴舞の ${used.length} 軒のハコに出た ${ALL.length.toLocaleString()} 組。帯の1こまが1年で、出た夜が多い年ほど明るくなります。`;
+  $("#fv").insertAdjacentHTML("beforeend", used.map(k => `<option value="${esc(k)}">${esc(VN[k])}</option>`).join(""));
+  renderFeat();
+  const q = new URLSearchParams(location.search).get("q"); if (q) $("#q").value = q;
+  apply();
+  let t; $("#q").addEventListener("input", () => { clearTimeout(t); t = setTimeout(apply, 120); });
+  $("#fv").onchange = apply; $("#fs").onchange = apply; $("#more").onclick = more;
+})();
+</script>
+</body>
+</html>

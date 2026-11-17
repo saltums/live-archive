@@ -154,7 +154,7 @@ body.intro header .when{color:var(--lamp)}
   <div class="pane tonight" id="pane-tonight"></div>
   <div class="pane" id="pane-venues" hidden><div class="shelf" id="shelf"></div></div>
   <div class="pane" id="pane-artist" hidden>
-    <div class="find"><input id="q" type="search" placeholder="組の名前・ハコ・日付（2015/8/1）" autocomplete="off"></div>
+    <div class="find"><input id="q" type="search" placeholder="組の名前・ハコ・日付（2015/8/1）" autocomplete="off"><a class="btn" href="bands.html" style="white-space:nowrap">組の一覧</a></div>
     <div class="artist-on" id="artistOn" hidden></div>
     <div class="hits" id="hits"></div>
   </div>
@@ -658,7 +658,7 @@ function intro(target){
   search("");
   // ほかのページからのリンク: map.html?d=2016-05-22&v=crr&a=1263（日付・ハコ・組の番号。どれも省ける）
   const q = new URLSearchParams(location.search), qd = /^\d{4}-\d\d-\d\d$/.test(q.get("d") || "") ? q.get("d") : null,
-        qv = T.venues.some(v => v.key === q.get("v")) ? q.get("v") : null, qa = ARTISTS.get("#" + q.get("a"));
+        qv = T.venues.some(v => v.key === q.get("v")) ? q.get("v") : null, qa = ARTISTS.get("#" + q.get("a")) || (q.get("n") ? ARTISTS.get(nk(q.get("n"))) || [...ARTISTS.values()].find(x => x.keys.includes(nk(q.get("n")))) : null);
   if (qd || qv || qa){   // 行き先が決まっているときはオープニングを飛ばす
     setYear(+(qd || TODAY).slice(0, 4)); if (qd) setDate(qd);
     if (qa){ showPane("artist"); pickArtist(qa, {date:qd, venue:qv}); } else if (qv) select(qv);
