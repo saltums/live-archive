@@ -33,6 +33,7 @@ button,input{font:inherit;color:inherit}
 .pin.lit i{background:var(--lamp);box-shadow:0 0 0 2px rgba(10,15,34,.85),0 0 12px 3px rgba(255,200,87,.75)}
 .pin.gone{opacity:.35}
 .pin span{font-size:11px;line-height:1;padding:3px 6px;border-radius:6px;background:rgba(10,15,34,.82);border:1px solid var(--line);display:none}
+.pin.faint i{background:#8a7440;box-shadow:0 0 0 2px rgba(10,15,34,.85),0 0 6px 1px rgba(255,200,87,.35)}
 .pin.lit span,.pin.sel span,.pin.hit span{display:inline-block}
 .pin.sel i{outline:2px solid var(--ink);outline-offset:2px}
 .pin b{font-family:var(--num);color:var(--lamp);margin-left:3px}
@@ -70,6 +71,9 @@ header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
 .shelf button small{font-size:11px;margin-top:auto}
 .shelf button.lit{border-color:rgba(255,200,87,.7)}
 .shelf button.lit b::before{content:"● ";color:var(--lamp)}
+.shelf button.faint b::before{content:"○ ";color:var(--lamp)}
+.tonight .row.faint b{color:#b89a55}
+.tonight .row.faint span{color:var(--ink-2)}
 .shelf button.gone{opacity:.5}
 .find{display:flex;gap:8px}
 .find input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px}
@@ -111,6 +115,8 @@ header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
 #card .floors button.cur{border-color:var(--ink)}
 
 #homeBtn{position:fixed;z-index:3;right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 96px);padding:6px 11px;font-size:12px}
+body.intro #dock .pane, body.intro .tabs{opacity:.35;pointer-events:none}
+body.intro header .when{color:var(--lamp)}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s;z-index:9}
 #loading{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-2);font-size:13px}
 @media (prefers-reduced-motion: reduce){ #card,#fade{transition:none} }
@@ -144,7 +150,7 @@ header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
     <div class="hits" id="hits"></div>
   </div>
   <div class="yr"><label for="year">年</label><div class="track"><div class="ticks" id="ticks"></div><input type="range" id="year" min="2000" max="2026" step="1"></div><output id="yearOut">—</output></div>
-  <div class="credit"><span>地図 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span><span>鶴舞は実際（約1.1km南）より近くに置いています</span></div>
+  <div class="credit"><span>道路 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>・建物 <a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">国土交通省 PLATEAU</a></span><span>鶴舞は実際（約1.1km南）より近くに置いています</span></div>
 </section>
 
 <button class="btn" id="homeBtn" type="button" hidden>⤢ 全体を見る</button>
@@ -226,11 +232,20 @@ function aliveOn(v, d){
   if (v.close && ymOf(d) > v.close) return false;
   return true;
 }
-const nightsAt = (k, d) => (aliveOn(V(k), d) && NIGHTS[k]?.get(d)) || null;
+const CLOSED = /メンテナンス|大掃除|お休み|休み|休業|定休|レコーディング|機材導入|工事/;
+const isClosed = e => !e.names.length && CLOSED.test(e.title || "");
+// その夜のそのハコの公演（休みの日は除く）
+const nightsAt = (k, d) => { const l = aliveOn(V(k), d) && NIGHTS[k]?.get(d); if (!l) return null; const o = l.filter(e => !isClosed(e)); return o.length ? o : null; };
+// 灯りの強さ: 2＝出演者の記録あり、1＝公演名だけ（出演者の記録なし・貸切など）、0＝なし
+const levelAt = (k, d) => { const l = nightsAt(k, d); return !l ? 0 : l.some(e => e.names.length) ? 2 : 1; };
 const fmtD = d => { const t = new Date(d + "T00:00:00"); return `${d.slice(0,4)}.${+d.slice(5,7)}.${+d.slice(8,10)}（${WD[t.getDay()]}）`; };
 
 /* ---------------------------------------------------------------- 3D */
 let renderer, scene, camera, venueObj = {}, clock = new THREE.Clock();
+const cars = []; let carPos = null, carGeo = null, lampMat = null, carMat = null;
+function moveCars(dt){ if (!carGeo) return; cars.forEach((c, i) => { c.s = (c.s + c.v*dt + c.l.len) % c.l.len; const {p, cum} = c.l; let k = 1; while (k < cum.length-1 && cum[k] < c.s) k++;
+  const t = (c.s - cum[k-1])/Math.max(cum[k]-cum[k-1], .001), ax = p[k-1][0], ay = p[k-1][1], bx = p[k][0], by = p[k][1], Ln = Math.hypot(bx-ax, by-ay) || 1, sd = c.dir*c.l.w*0.3;
+  carPos[i*3] = ax+(bx-ax)*t - (by-ay)/Ln*sd; carPos[i*3+1] = 1.5; carPos[i*3+2] = -(ay+(by-ay)*t + (bx-ax)/Ln*sd); }); carGeo.attributes.position.needsUpdate = true; }
 const view = {cx:0, cz:0, zoom:1, baseZoom:1, home:[0,0]};
 const EL = 0.86, AZ = -0.28;
 const DIR = new THREE.Vector3(Math.sin(AZ)*Math.cos(EL), Math.sin(EL), Math.cos(AZ)*Math.cos(EL));
@@ -268,28 +283,63 @@ function build(){
     return pos; };
   const flat = (list, w, y, color) => { let p = []; for (const r of list) p = p.concat(strip(r.p, w || r.w, y));
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(p,3)); scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({color}))); };
-  flat(T.roads, 0, 0, C.road); flat(T.rails, 6, 0.1, C.rail);
-  const geos = [];
-  T.buildings.forEach(b => { if (b.venues) return; const g = extrude(b.p, b.h); colorize(g, C.top, C.side1, C.side2); geos.push(g); });
-  scene.add(new THREE.Mesh(mergeGeos(geos), new THREE.MeshBasicMaterial({vertexColors:true})));
+  const MAJOR = new Set(["motorway","trunk","primary","secondary","tertiary"]);
+  flat(T.roads.filter(r => !MAJOR.has(r.k)), 0, 0, C.road); flat(T.roads.filter(r => MAJOR.has(r.k)), 0, 0.05, 0x222E66); flat(T.rails, 6, 0.1, C.rail);
+  // 建物（PLATEAU の実際の形。1棟 = 三角形の並び。中心 c からの x, y と地面からの高さ、0.1m 単位）
+  const rnd = i => { const x = Math.sin(i*127.1 + 311.7)*43758.5453; return x - Math.floor(x); };
+  const col = new THREE.Color(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), nn = new THREE.Vector3();
+  function tris(b, i, top, side, pos, cols, wpos, wuv){
+    const t = b.t, cx = b.c[0], cy = b.c[1], off = rnd(i + 99)*50, P = [];
+    for (let k = 0; k < t.length; k += 9){
+      for (let j = 0; j < 3; j++) P[j] = [cx + t[k+j*3]/10, t[k+j*3+2]/10, -(cy + t[k+j*3+1]/10)];
+      e1.set(P[1][0]-P[0][0], P[1][1]-P[0][1], P[1][2]-P[0][2]); e2.set(P[2][0]-P[0][0], P[2][1]-P[0][1], P[2][2]-P[0][2]); nn.crossVectors(e1, e2).normalize();
+      const isTop = Math.abs(nn.y) > .5, shade = isTop ? 1 : (nn.x > 0 ? .78 : .6);
+      for (let j = 0; j < 3; j++){
+        pos.push(P[j][0], P[j][1], P[j][2]);
+        col.setHex(isTop ? top : side).multiplyScalar(shade*(0.78 + 0.22*(P[j][1]/Math.max(b.h, 1)))); cols.push(col.r, col.g, col.b);
+        if (!isTop && wpos){ wpos.push(P[j][0], P[j][1], P[j][2]); wuv.push((P[j][0] + P[j][2])/40 + off, P[j][1]/102 + off); }
+      }
+    }
+  }
+  const mesh = (pos, cols) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos,3)); g.setAttribute("color", new THREE.Float32BufferAttribute(cols,3));
+    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1})); };
+  const wmesh = (wpos, wuv, map, color, opacity) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(wpos,3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(wuv,2));
+    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({map, color, transparent:true, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false, opacity})); };
+  // ふつうの建物はまとめて1つに。窓明かりを側面に散らす
+  const cityWin = canvasTex(x => { x.fillStyle = "#000"; x.fillRect(0,0,256,512);
+    for (let r = 0; r < 32; r++) for (let c = 0; c < 16; c++){ const v = rnd(r*16 + c + 7); if (v > 0.26) continue;
+      x.fillStyle = v < 0.04 ? "#bcd6ff" : v < 0.16 ? "#ffd58a" : "#8f7440"; x.fillRect(c*16+4, r*16+4, 8, 9); } }, 256, 512);
+  { const pos = [], cols = [], wpos = [], wuv = [];
+    T.buildings.forEach((b, i) => { if (!b.venues) tris(b, i, 0x1A2450, 0x161F4A, pos, cols, wpos, wuv); });
+    scene.add(mesh(pos, cols)); scene.add(wmesh(wpos, wuv, cityWin, 0xffffff, .8)); }
+  // 街灯
+  { const lamps = []; for (const r of T.roads){ if (r.w < 5) continue; let acc = 0;
+      for (let i = 1; i < r.p.length; i++){ const [ax, ay] = r.p[i-1], [bx, by] = r.p[i], Ln = Math.hypot(bx-ax, by-ay); if (!Ln) continue; let d = 35 - acc;
+        while (d < Ln){ const t = d/Ln, sd = (lamps.length/3 % 2 ? 1 : -1)*r.w*0.6; lamps.push(ax+(bx-ax)*t - (by-ay)/Ln*sd, 5, -(ay+(by-ay)*t + (bx-ax)/Ln*sd)); d += 35; } acc = (acc + Ln) % 35; } }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(lamps,3));
+    lampMat = new THREE.PointsMaterial({map:glowTex(), color:0xFFD9A0, size:5, sizeAttenuation:false, transparent:true, opacity:.32, blending:THREE.AdditiveBlending, depthWrite:false}); scene.add(new THREE.Points(g, lampMat)); }
+  // 大通りを流れる車の光
+  { const lanes = T.roads.filter(r => MAJOR.has(r.k)).map(r => { const cum = [0]; for (let i = 1; i < r.p.length; i++) cum.push(cum[i-1] + Math.hypot(r.p[i][0]-r.p[i-1][0], r.p[i][1]-r.p[i-1][1])); return {p:r.p, cum, len:cum[cum.length-1], w:r.w}; }).filter(l => l.len > 30);
+    lanes.forEach((l, li) => { const n = Math.max(1, Math.round(l.len/80)); for (let k = 0; k < n; k++){ const dir = rnd(li*31+k) > .5 ? 1 : -1; cars.push({l, s:rnd(li*17+k*3)*l.len, v:(9 + rnd(li+k*7)*8)*dir, dir}); } });
+    carPos = new Float32Array(cars.length*3); const cc = new Float32Array(cars.length*3); cars.forEach((c, i) => cc.set(c.dir > 0 ? [1, .96, .86] : [1, .22, .2], i*3));
+    carGeo = new THREE.BufferGeometry(); carGeo.setAttribute("position", new THREE.BufferAttribute(carPos,3)); carGeo.setAttribute("color", new THREE.BufferAttribute(cc,3));
+    carMat = new THREE.PointsMaterial({map:glowTex(), vertexColors:true, size:4, sizeAttenuation:false, transparent:true, opacity:.9, blending:THREE.AdditiveBlending, depthWrite:false}); scene.add(new THREE.Points(carGeo, carMat)); }
+  // ハコの建物（1棟ずつ。沈める・光らせるため）
   const wt = windowTex(), gt = glowTex(), byB = {};
   for (const v of T.venues) if (v.bldg != null) (byB[v.bldg] = byB[v.bldg] || []).push(v);
   for (const [bi, vs] of Object.entries(byB)){
-    const b = T.buildings[bi], h = Math.max(b.h, vs.some(v => v.landmark) ? 26 : 16);
-    const g = extrude(b.p, h); colorize(g, C.vtop, C.vside1, C.vside2);
-    const body = new THREE.Mesh(g, new THREE.MeshBasicMaterial({vertexColors:true}));
-    const wg = extrude(b.p, h*0.92), pa = wg.attributes.position, uv = new Float32Array(pa.count*2);
-    for (let i = 0; i < pa.count; i++){ uv[i*2] = (pa.getX(i) + pa.getZ(i)) / 9; uv[i*2+1] = pa.getY(i) / 6; }
-    wg.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    const b = T.buildings[bi], h = b.h, pos = [], cols = [], wpos = [], wuv = [];
+    tris(b, +bi, C.vtop, C.vside1, pos, cols, wpos, wuv);
+    for (let i = 0; i < wuv.length; i += 2){ wuv[i] = (wpos[i/2*3] + wpos[i/2*3+2])/9; wuv[i+1] = wpos[i/2*3+1]/6; }
+    const body = mesh(pos, cols);
     const add = () => ({map:gt, color:C.lamp, transparent:true, blending:THREE.AdditiveBlending, opacity:0, depthWrite:false});
-    const win = new THREE.Mesh(wg, new THREE.MeshBasicMaterial({...add(), map:wt})); win.scale.set(1.002, 1, 1.002);
+    const win = wmesh(wpos, wuv, wt, C.lamp, 0);
     const grp = new THREE.Group(); grp.add(body); grp.add(win);
-    const cx = b.p.reduce((s,p) => s+p[0], 0)/b.p.length, cy = b.p.reduce((s,p) => s+p[1], 0)/b.p.length;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial(add())); sp.scale.set(150, 150, 1); sp.position.set(cx, h*0.6, -cy);
-    const pg = new THREE.PlaneGeometry(170, 170); pg.rotateX(-Math.PI/2);
+    const cx = b.c[0], cy = b.c[1];
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial(add())); sp.scale.set(170, 170, 1); sp.position.set(cx, h*0.6, -cy);
+    const pg = new THREE.PlaneGeometry(210, 210); pg.rotateX(-Math.PI/2);
     const pool = new THREE.Mesh(pg, new THREE.MeshBasicMaterial(add())); pool.position.set(cx, 0.4, -cy);
-    // 選んだときの輪
-    const rg = new THREE.RingGeometry(26, 30, 48); rg.rotateX(-Math.PI/2);
+    const rg = new THREE.RingGeometry(30, 34, 48); rg.rotateX(-Math.PI/2);
     const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({color:0xF2F0E6, transparent:true, opacity:0, depthWrite:false})); ring.position.set(cx, 0.6, -cy);
     scene.add(grp, sp, pool, ring);
     for (const v of vs) venueObj[v.key] = {grp, win, sp, pool, ring, body, h, cx, cy, bi:+bi};
@@ -372,15 +422,17 @@ function bindGestures(){
   el.addEventListener("wheel", e => { e.preventDefault(); userMoved(); zoomAt(Math.exp(-e.deltaY*0.0015), e.clientX - innerWidth/2, e.clientY - innerHeight/2); }, {passive:false});
   el.addEventListener("dblclick", e => { userMoved(); zoomAt(1.8, e.clientX - innerWidth/2, e.clientY - innerHeight/2); });
 }
+let lastT = 0;
 function tick(){
-  const t = clock.getElapsedTime();
+  const t = clock.getElapsedTime(); moveCars(Math.min(t - lastT, .05)); lastT = t;
+  { const k = view.zoom/view.baseZoom; if (lampMat) lampMat.size = Math.min(5*k, 26); if (carMat) carMat.size = Math.min(4.5*k, 22); }
   if (anim){
     const k = Math.min(1, (performance.now() - anim.t0)/anim.ms), e = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k+2, 3)/2;
     for (const f of ["cx","cz","zoom"]) view[f] = anim.s[f] + (anim.e[f] - anim.s[f])*e; place();
     if (k >= 1){ const d = anim.done; anim = null; d && d(); }
   }
   for (const o of Object.values(venueObj)){
-    const f = 0.85 + 0.15*Math.sin(t*1.7 + o.bi), on = o.on ? 1 : 0;
+    const f = 0.85 + 0.15*Math.sin(t*1.7 + o.bi), on = o.on === true ? 1 : (o.on || 0);
     o.win.material.opacity = on*f; o.sp.material.opacity = on*0.75*f; o.pool.material.opacity = on*0.5*f;
     o.ring.material.opacity += ((o.sel ? 0.9 : 0) - o.ring.material.opacity)*0.2;
     o.grp.scale.y += ((o.alive ? 1 : 0.06) - o.grp.scale.y)*0.12;
@@ -415,9 +467,9 @@ function movePins(){
 }
 function refreshPins(){
   for (const P of PINS){
-    const v = P.v, k = v.key, alive = aliveOn(v, date), lit = !!nightsAt(k, date);
+    const v = P.v, k = v.key, alive = aliveOn(v, date), lv = levelAt(k, date), lit = lv === 2;
     const hit = artist && artist.hits.has(k);
-    P.el.className = "pin" + (lit ? " lit" : "") + (state(k) === "open" ? " open" : "") + (alive ? "" : " gone") + (selected === k ? " sel" : "") + (hit ? " hit" : "");
+    P.el.className = "pin" + (lit ? " lit" : lv === 1 ? " faint" : "") + (state(k) === "open" ? " open" : "") + (alive ? "" : " gone") + (selected === k ? " sel" : "") + (hit ? " hit" : "");
     const label = v.key === "apollo" && date >= "2022-09" ? v.name : v.name;
     P.el.querySelector("span").innerHTML = esc(shortName(v)) + (hit ? `<b>${artist.hits.get(k).length}</b>` : "");
     P.el.hidden = !!artist && !hit && !lit && selected !== k && !alive;
@@ -435,19 +487,19 @@ function setDate(d, keepYearSlider){
   $("#when").innerHTML = `${fmtD(d)}<span>${sameMD ? (ago ? ago + "年前の今夜" : "今夜") : ""}</span>`;
   for (const v of T.venues){ const o = venueObj[v.key]; if (!o) continue;
     const same = T.venues.filter(w => venueObj[w.key] === o);
-    o.alive = same.some(w => aliveOn(w, d)); o.on = same.some(w => nightsAt(w.key, d)); o.sel = same.some(w => w.key === selected); }
+    o.alive = same.some(w => aliveOn(w, d)); const lv = Math.max(...same.map(w => levelAt(w.key, d))); o.on = lv === 2 ? 1 : lv === 1 ? 0.3 : 0; o.sel = same.some(w => w.key === selected); }
   const lit = T.venues.flatMap(v => (nightsAt(v.key, d) || []).map(e => ({v, e})));
   $("#pane-tonight").innerHTML = lit.length
-    ? lit.map(({v, e}) => `<button type="button" class="row" data-k="${v.key}"><b>${esc(shortName(v))}</b><span>${esc(e.title || "")}${e.names.length ? (e.title ? "｜" : "") + esc(e.names.slice(0,6).join(" / ")) + (e.names.length > 6 ? " ほか" : "") : ""}</span></button>`).join("")
+    ? lit.sort((a, b) => b.e.names.length - a.e.names.length).map(({v, e}) => `<button type="button" class="row${e.names.length ? "" : " faint"}" data-k="${v.key}"><b>${esc(shortName(v))}</b><span>${esc(e.title || "")}${e.names.length ? (e.title ? "｜" : "") + esc(e.names.slice(0,6).join(" / ")) + (e.names.length > 6 ? " ほか" : "") : "（出演者の記録なし）"}</span></button>`).join("")
     : `<div class="none">この夜の公演の記録はありません。年のつまみを動かすか、「組・さがす」で組や日付から探してください。</div>`;
   $("#pane-tonight").querySelectorAll(".row").forEach(b => b.onclick = () => select(b.dataset.k));
-  $("#sub").textContent = artist ? `「${artist.name}」の出たハコを光らせています` : `${lit.length ? lit.length + " 公演" : "公演の記録なし"} ・ 入れるハコ ${T.venues.filter(v => state(v.key) === "open").length} 軒`;
+  $("#sub").textContent = artist ? `「${artist.name}」の出たハコを光らせています` : `${lit.length ? lit.length + " 公演" + (lit.some(x => !x.e.names.length) ? `（うち出演者の記録なし ${lit.filter(x => !x.e.names.length).length}）` : "") : "公演の記録なし"} ・ 入れるハコ ${T.venues.filter(v => state(v.key) === "open").length} 軒`;
   if (artist) for (const v of T.venues){ const o = venueObj[v.key]; if (o && artist.hits.has(v.key)) o.on = true; }
   refreshPins(); renderShelf(); if (selected) renderCard();
 }
 const setYear = y => setDate(`${y}-${TODAY.slice(5)}`);
 function firstYear(){
-  for (let y = THIS_YEAR; y >= 2000; y--){ const d = `${y}-${TODAY.slice(5)}`; if (d <= TODAY && T.venues.some(v => nightsAt(v.key, d))) return y; }
+  for (let y = THIS_YEAR; y >= 2000; y--){ const d = `${y}-${TODAY.slice(5)}`; if (d <= TODAY && T.venues.some(v => levelAt(v.key, d) === 2)) return y; }
   return THIS_YEAR - 1;
 }
 
@@ -459,9 +511,9 @@ function showPane(p){
 }
 function renderShelf(){
   const vs = [...T.venues].sort((a,b) => (a.island === b.island ? a.x - b.x : a.island === "shinsakae" ? -1 : 1));
-  $("#shelf").innerHTML = vs.map(v => { const k = v.key, st = state(k), alive = aliveOn(v, date), lit = !!nightsAt(k, date);
+  $("#shelf").innerHTML = vs.map(v => { const k = v.key, st = state(k), alive = aliveOn(v, date), lv = levelAt(k, date), lit = lv === 2;
     const town = v.island === "tsurumai" ? "鶴舞" : v.cluster || (v.building === "unryu" ? "雲竜フレックスビル" : "新栄");
-    return `<button type="button" data-k="${k}" class="${lit ? "lit" : ""}${alive ? "" : " gone"}"><span class="town">${esc(town)}</span><b>${esc(v.name)}</b>
+    return `<button type="button" data-k="${k}" class="${lit ? "lit" : lv === 1 ? "faint" : ""}${alive ? "" : " gone"}"><span class="town">${esc(town)}</span><b>${esc(v.name)}</b>
       <small class="st-${st}">${v.landmark && !v.arc ? "目印" : alive ? STATE_LABEL[st] : (v.close && ymOf(date) > v.close ? "閉店" : "まだない")}${artist && artist.hits.has(k) ? ` ・ ${artist.hits.get(k).length}回` : ""}</small></button>`; }).join("");
   $("#shelf").querySelectorAll("button").forEach(b => b.onclick = () => select(b.dataset.k));
 }
@@ -509,8 +561,8 @@ function renderCard(){
     const ds = artist.hits.get(k);
     body = `<div class="night"><b style="color:var(--lamp)">${esc(artist.name)}</b> がここに出た夜（${ds.length}回）<div class="dates">${ds.map(d => `<button type="button" data-d="${d}" class="${d === date ? "cur" : ""}">${d.replaceAll("-", ".")}</button>`).join("")}</div></div>`;
   }
-  body += evs ? `<div class="night">${evs.map(e => `<div><span class="d">${fmtD(date)}</span>${esc(e.title)}${e.names.length ? `<br><span style="color:var(--ink-2)">${esc(e.names.join(" / "))}</span>` : ""}</div>`).join("")}</div>`
-              : `<div class="night none">${alive ? "この夜の公演の記録はありません。" : v.close && ymOf(date) > v.close ? "この年にはもう閉店しています。" : "この年にはまだありません。"}</div>`;
+  body += evs ? `<div class="night">${evs.map(e => `<div><span class="d">${fmtD(date)}</span>${esc(e.title)}${e.names.length ? `<br><span style="color:var(--ink-2)">${esc(e.names.join(" / "))}</span>` : `<br><span style="color:var(--ink-2)">出演者の記録なし（公演名だけが残っています）</span>`}</div>`).join("")}</div>`
+              : `<div class="night none">${alive ? ((NIGHTS[k]?.get(date) || []).some(isClosed) ? `この夜はお店の記録では「${esc(NIGHTS[k].get(date).find(isClosed).title)}」です。` : "この夜の公演の記録はありません。") : v.close && ymOf(date) > v.close ? "この年にはもう閉店しています。" : "この年にはまだありません。"}</div>`;
   const total = NIGHTS[k]?.size || 0;
   const canEnter = st === "open" || v.page;
   $("#card").innerHTML = `<div class="head"><div style="flex:1;min-width:0"><h2>${esc(v.name)}</h2>
@@ -519,21 +571,47 @@ function renderCard(){
       <button type="button" class="btn" id="cardClose" aria-label="閉じる">✕</button></div>
     ${floors.length > 1 ? `<div class="floors">${floors.map(w => `<button type="button" data-k="${w.key}" class="${w.key === k ? "cur" : ""}">${esc(w.floor || "")} ${esc(shortName(w))}</button>`).join("")}</div>` : ""}
     ${body}
-    <div class="acts">${canEnter ? `<button type="button" class="btn primary" id="enter">入る</button>` : `<span class="meta">${st === "staff" ? "関係者だけが見られます" : "準備中です"}</span>`}
+    <div class="acts">${canEnter ? (NEW_TAB ? `<a class="btn primary" href="${esc(enterUrl(v))}" target="_blank" rel="noopener">入る（別のタブで開きます）</a>` : `<button type="button" class="btn primary" id="enter">入る</button>`) : `<span class="meta">${st === "staff" ? "関係者だけが見られます" : "準備中です"}</span>`}
       ${artist && artist.id && ARTIST_PAGE ? `<a class="btn" href="${ARTIST_PAGE(artist.id)}">${esc(artist.name)} のページ</a>` : ""}</div>`;
   $("#cardClose").onclick = () => closeCard();
   $("#card").querySelectorAll(".floors button").forEach(b => b.onclick = () => select(b.dataset.k));
   $("#card").querySelectorAll(".dates button").forEach(b => b.onclick = () => setDate(b.dataset.d));
   const en = $("#enter"); if (en) en.onclick = () => enter(v);
 }
+// 自前のアーカイブがあるハコ（SiX-DOG）はそちらへ。その夜に公演があればその日のページ、なければ会場（3D）
+const enterUrl = v => v.night_page && NIGHTS[v.key]?.has(date) ? v.night_page.replace("{date}", date) : (v.page || VENUE_PAGE(v.arc, v));
+// Claude の中のページ（関係者用）は自分でほかのサイトへ切り替われないので、別のタブで開くリンクにする
+const NEW_TAB = !!window.TOWN_NEW_TAB;
 function enter(v){
   const o = venueObj[v.key] || {cx:v.x, cy:v.y};
   $("#card").classList.remove("on");
   zoomTo(o.cx, -o.cy, view.baseZoom*7, 1400);
   setTimeout(() => $("#fade").style.opacity = 1, 900);
   // 自前のアーカイブがあるハコ（SiX-DOG）はそちらへ。その夜に公演があればその日のページ、なければ会場（3D）
-  const url = v.night_page && NIGHTS[v.key]?.has(date) ? v.night_page.replace("{date}", date) : (v.page || VENUE_PAGE(v.arc, v));
+  const url = enterUrl(v);
   setTimeout(() => { location.href = url; }, 1450);
+}
+
+/* ---------------------------------------------------------------- オープニング
+   遠くから街へ寄りながら、年が 2000 年から走る。ハコが建ち、灯りが点いたり消えたりして「○年前の今夜」で止まる。
+   画面を押すと飛ばせる。同じ端末で2回目からは短くする */
+function intro(target){
+  let seen = false; try { seen = !!sessionStorage.getItem("nla_seen"); sessionStorage.setItem("nla_seen", "1"); } catch(e){}
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || target <= 2001){ setYear(target); return; }
+  const y0 = 2000, ms = seen ? 2200 : 6500, z1 = view.baseZoom, z0 = z1*0.42, t0 = performance.now();
+  let cur = -1, done = false;
+  document.body.classList.add("intro");
+  const finish = () => { if (done) return; done = true; document.body.classList.remove("intro"); view.zoom = z1; place(); setYear(target); removeEventListener("pointerdown", finish, true); };
+  addEventListener("pointerdown", finish, true);
+  (function step(){
+    if (done) return;
+    const k = Math.min(1, (performance.now() - t0)/ms), e = 1 - Math.pow(1 - k, 3);
+    view.zoom = z0 + (z1 - z0)*e; place();
+    const y = Math.round(y0 + (target - y0)*Math.min(1, k*1.08));
+    if (y !== cur){ cur = y; setYear(y); }
+    if (k >= 1) finish(); else requestAnimationFrame(step);
+  })();
 }
 
 /* ---------------------------------------------------------------- はじめ */
@@ -541,7 +619,7 @@ function enter(v){
   try { await loadData(); } catch(e){ $("#loading").textContent = "街のデータを読めませんでした"; console.error(e); return; }
   $("#year").max = THIS_YEAR;
   build();
-  setYear(firstYear()); search("");
+  search(""); intro(firstYear());
   $("#loading").remove();
   $("#year").addEventListener("input", e => setYear(+e.target.value));
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPane(t.dataset.pane));

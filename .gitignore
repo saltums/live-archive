@@ -1,2 +1,4 @@
 tools/
 __pycache__/
+town/plateau/*.b3dm
+town/plateau/convert.html

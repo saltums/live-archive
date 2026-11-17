@@ -1,0 +1,14 @@
+出典: 国土交通省 Project PLATEAU 3D都市モデル（名古屋市 2022年度、建築物 LOD2 テクスチャなし 3D Tiles）。取得 2026-11-17。
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data0.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data1.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data2.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data3.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data5.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data6.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data7.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data32.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data34.b3dm
+https://assets.cms.plateau.reearth.io/assets/37/ca8d9a-f78f-470f-a7e6-d598b9493faf/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23106_naka-ku_lod2_no_texture/data/data36.b3dm
+https://assets.cms.plateau.reearth.io/assets/f5/70535e-559f-4479-acee-b49051d3afb0/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23102_higashi-ku_lod2_no_texture/data/data47.b3dm
+https://assets.cms.plateau.reearth.io/assets/f5/70535e-559f-4479-acee-b49051d3afb0/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23102_higashi-ku_lod2_no_texture/data/data51.b3dm
+https://assets.cms.plateau.reearth.io/assets/f5/70535e-559f-4479-acee-b49051d3afb0/23100_nagoya-shi_city_2022_citygml_4_op_bldg_3dtiles_23102_higashi-ku_lod2_no_texture/data/data52.b3dm
