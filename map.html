@@ -105,6 +105,9 @@ header .sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
 #card .st{font-size:12px;font-weight:700}
 .st-open{color:var(--open)} .st-staff{color:var(--lamp)} .st-prep{color:var(--ink-2)}
 #card .night{margin-top:10px;font-size:13px;line-height:1.55;border-top:1px solid var(--line);padding-top:8px}
+#card .who{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:3px}
+#card .who button{background:none;border:1px solid var(--line);border-radius:999px;color:var(--ink-2);font:inherit;font-size:12px;padding:2px 9px;cursor:pointer}
+#card .who button:hover,#card .who button.cur{color:var(--lamp);border-color:var(--lamp)}
 #card .night .d{font-family:var(--num);color:var(--ink-2);margin-right:6px}
 #card .dates{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #card .dates button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-family:var(--num);font-size:12px;cursor:pointer}
@@ -187,7 +190,13 @@ const nk = s => String(s || "").normalize("NFKC").toLowerCase().replace(/[\s\.\-
 let T = null;
 const NIGHTS = {};          // ハコ key → Map(日付 → [{title, names}])
 const PUBLIC = new Set(), LEDGER = new Set();
-const ARTISTS = new Map();  // 正規化した名前 → {name, hits: Map(ハコ key → [日付…])}
+const ARTISTS = new Map();  // 組の番号（"#12"。番号のない出演は正規化した名前）→ {name, id, keys:[探すときの名前], hits: Map(ハコ key → [日付…])}
+const PAGES = new Map();    // 組の番号 → その組の詳しいページ（専用サイト）の URL
+const PUBIDS = new Set();   // 公開サイトにページ（index.html#artist-番号）がある組の番号
+const ALIAS = {};           // 組の番号 → ほかの呼び名
+const SITE = window.SITE_BASE || "";   // 公開サイトの置き場所（Claude の中のページからは絶対 URL）
+const akey = (id, n) => id ? "#" + id : nk(n);
+const pageOf = a => !a || !a.id ? null : PAGES.get(a.id) || (PUBIDS.has(a.id) ? ARTIST_PAGE(a.id) : null);
 let date = null;            // いま見ている夜（YYYY-MM-DD）
 let selected = null;        // 選んでいるハコ key
 let artist = null;          // 選んでいる組（ARTISTS の値）
@@ -204,6 +213,7 @@ async function loadData(){
       headers:{apikey:CFG.publishableKey, Authorization:"Bearer " + CFG.publishableKey, "Content-Type":"application/json"}, body:"{}"});
     const s = await r.json();
     const names = new Map(s.artists.map(a => [a[0], a[1]]));
+    for (const a of s.artists){ PUBIDS.add(a[0]); if (a[4]) PAGES.set(a[0], SITE + "artists/" + a[4] + "/"); }
     const acts = new Map();
     for (const a of s.acts){ if (!acts.has(a[1])) acts.set(a[1], []); acts.get(a[1]).push({name:a[3] || names.get(a[2]) || "", id:a[2]}); }
     for (const x of s.shows){
@@ -215,20 +225,28 @@ async function loadData(){
     }
   } catch(e){ console.warn("公開分を読めませんでした", e); }
   // 台帳の分（ハコごとの全公演）。公開の地図は town/nights.json、Claude の中のページは先に読み込んだ window.TOWN_NIGHTS
-  const merge = all => { for (const [k, days] of Object.entries(all || {})){
+  // 出演は [組の番号, 表示名] の表（acts）への番号で持つ。共通DB の全部から作ってあるので、公開分と同じ日はこちらを使う
+  const merge = j => { const A = j.acts || [];
+    for (const [k, days] of Object.entries(j.nights || {})){
       const m = NIGHTS[k] || (NIGHTS[k] = new Map());
-      for (const [d, evs] of Object.entries(days)) if (!m.has(d)) m.set(d, evs.map(e => ({title:e[0] || "", names:e.slice(1)})));
-    } };
+      for (const [d, evs] of Object.entries(days)) m.set(d, evs.map(e => { const as = e.slice(1).map(i => A[i]).filter((a, i, l) => a && (!a[0] || l.findIndex(b => b && b[0] === a[0]) === i)); return {title:e[0] || "", names:as.map(a => a[1]), ids:as.map(a => a[0])}; }));
+    }
+    for (const [id, p] of Object.entries(j.pages || {})) PAGES.set(+id, /^https?:/.test(p) ? p : SITE + p);
+    Object.assign(ALIAS, j.alias || {}); };
   if (window.TOWN_NIGHTS) merge(window.TOWN_NIGHTS);
-  else try { const r = await fetch(window.TOWN_NIGHTS_URL || "town/nights.json"); if (r.ok) merge((await r.json()).nights); } catch(e){ console.warn("台帳の分を読めませんでした", e); }
+  else try { const r = await fetch(window.TOWN_NIGHTS_URL || "town/nights.json"); if (r.ok) merge(await r.json()); } catch(e){ console.warn("台帳の分を読めませんでした", e); }
   // 組の索引
   for (const [k, m] of Object.entries(NIGHTS)) for (const [d, evs] of m) for (const e of evs) e.names.forEach((n, i) => {
-    const key = nk(n); if (!key) return;
-    let a = ARTISTS.get(key); if (!a){ a = {name:n, key, hits:new Map(), id:e.ids ? e.ids[i] : null}; ARTISTS.set(key, a); }
+    const id = e.ids ? e.ids[i] : null, key = akey(id, n); if (!key) return;
+    let a = ARTISTS.get(key); if (!a){ a = {name:n, key, hits:new Map(), id, seen:new Map()}; ARTISTS.set(key, a); }
+    a.seen.set(n, (a.seen.get(n) || 0) + 1);
     if (!a.hits.has(k)) a.hits.set(k, []);
     const l = a.hits.get(k); if (l[l.length-1] !== d) l.push(d);
   });
-  for (const a of ARTISTS.values()){ a.n = 0; for (const l of a.hits.values()){ l.sort(); a.n += l.length; } }
+  for (const a of ARTISTS.values()){ a.n = 0; for (const l of a.hits.values()){ l.sort(); a.n += l.length; }
+    const al = (a.id && ALIAS[a.id]) || [];
+    a.name = al[0] || [...a.seen].sort((x, y) => y[1] - x[1])[0][0];      // 表示は組の正式な名前（なければいちばん多い書き方）
+    a.keys = [...new Set([...a.seen.keys(), ...al].map(nk))].filter(Boolean); }
 }
 const state = k => PUBLIC.has(k) ? "open" : (NIGHTS[k] && NIGHTS[k].size) ? "staff" : "prep";
 const STATE_LABEL = {open:"入れる", staff:"記録あり", prep:"準備中"};
@@ -531,15 +549,15 @@ function search(q){
   if (m) out.push({kind:"日付", label:`${m[1]}.${+m[2]}.${+m[3]} の夜`, go:() => { setDate(`${m[1]}-${pad(m[2])}-${pad(m[3])}`); showPane("tonight"); }});
   const key = nk(s);
   for (const v of T.venues) if (nk(v.name).includes(key) || nk(shortName(v)).includes(key)) out.push({kind:"ハコ", label:v.name, go:() => select(v.key)});
-  const as = [...ARTISTS.values()].filter(a => a.key.includes(key)).sort((a,b) => (a.key.startsWith(key) ? 0 : 1) - (b.key.startsWith(key) ? 0 : 1) || b.n - a.n).slice(0, 30);
-  for (const a of as) out.push({kind:`組・${a.n}回`, label:a.name, go:() => pickArtist(a)});
+  const as = [...ARTISTS.values()].filter(a => a.keys.some(x => x.includes(key))).sort((a,b) => (a.keys.some(x => x.startsWith(key)) ? 0 : 1) - (b.keys.some(x => x.startsWith(key)) ? 0 : 1) || b.n - a.n).slice(0, 30);
+  for (const a of as) out.push({kind:`組・${a.n}回${pageOf(a) ? "・ページあり" : ""}`, label:a.name, go:() => pickArtist(a)});
   $("#hits").innerHTML = out.length ? out.map((h, i) => `<button type="button" data-i="${i}"><small>${esc(h.kind)}</small><span>${esc(h.label)}</span></button>`).join("") : `<div class="none">見つかりませんでした。</div>`;
   $("#hits").querySelectorAll("button").forEach(b => b.onclick = () => out[+b.dataset.i].go());
 }
-function pickArtist(a){
-  artist = a; closeCard(true);
+function pickArtist(a, keep){   // keep = {date, venue}: その夜・そのハコを開いたまま組だけ選ぶ（カードの出演者やほかのページからのリンク）
+  artist = a; if (!keep || !keep.venue) closeCard(true);
   const on = $("#artistOn"); on.hidden = false;
-  on.innerHTML = `<b>${esc(a.name)}</b><span style="color:var(--ink-2)">${a.hits.size} 軒・${a.n} 回</span><button type="button" class="btn" id="clearArtist" style="margin-left:auto;padding:5px 10px">やめる</button>`;
+  on.innerHTML = `<b>${esc(a.name)}</b><span style="color:var(--ink-2)">${a.hits.size} 軒・${a.n} 回</span>${pageOf(a) ? `<a class="btn" href="${esc(pageOf(a))}"${NEW_TAB ? ' target="_blank" rel="noopener"' : ""} style="margin-left:auto;padding:5px 10px">この組のページ</a>` : ""}<button type="button" class="btn" id="clearArtist" style="${pageOf(a) ? "" : "margin-left:auto;"}padding:5px 10px">やめる</button>`;
   $("#clearArtist").onclick = clearArtist;
   $("#q").value = ""; $("#hits").innerHTML = "";
   // 年のつまみに出た年の印
@@ -547,8 +565,8 @@ function pickArtist(a){
   const lo = +$("#year").min, hi = +$("#year").max;
   $("#ticks").innerHTML = [...years].map(y => `<i style="left:${((y-lo)/(hi-lo)*100).toFixed(2)}%"></i>`).join("");
   // いちばん最近に出た夜へ
-  const last = [...a.hits.values()].flat().sort().pop(); setDate(last);
-  home();
+  const last = [...a.hits.values()].flat().sort().pop(); setDate(keep && keep.date || last);
+  if (keep && keep.venue && V(keep.venue)) select(keep.venue); else home();
 }
 function clearArtist(){ artist = null; $("#artistOn").hidden = true; $("#ticks").innerHTML = ""; search(""); setDate(date); }
 
@@ -575,7 +593,7 @@ function renderCard(){
     const ds = artist.hits.get(k);
     body = `<div class="night"><b style="color:var(--lamp)">${esc(artist.name)}</b> がここに出た夜（${ds.length}回）<div class="dates">${ds.map(d => `<button type="button" data-d="${d}" class="${d === date ? "cur" : ""}">${d.replaceAll("-", ".")}</button>`).join("")}</div></div>`;
   }
-  body += evs ? `<div class="night">${evs.map(e => `<div><span class="d">${fmtD(date)}</span>${esc(e.title)}${e.names.length ? `<br><span style="color:var(--ink-2)">${esc(e.names.join(" / "))}</span>` : `<br><span style="color:var(--ink-2)">出演者の記録なし（公演名だけが残っています）</span>`}</div>`).join("")}</div>`
+  body += evs ? `<div class="night">${evs.map(e => `<div><span class="d">${fmtD(date)}</span>${esc(e.title)}${e.names.length ? `<span class="who">${e.names.map((n, i) => `<button type="button" data-a="${esc(akey(e.ids && e.ids[i], n))}" class="${artist && artist.key === akey(e.ids && e.ids[i], n) ? "cur" : ""}">${esc(n)}</button>`).join("")}</span>` : `<br><span style="color:var(--ink-2)">出演者の記録なし（公演名だけが残っています）</span>`}</div>`).join("")}</div>`
               : `<div class="night none">${alive ? ((NIGHTS[k]?.get(date) || []).some(isClosed) ? `この夜はお店の記録では「${esc(NIGHTS[k].get(date).find(isClosed).title)}」です。` : "この夜の公演の記録はありません。") : v.close && ymOf(date) > v.close ? "この年にはもう閉店しています。" : "この年にはまだありません。"}</div>`;
   const total = NIGHTS[k]?.size || 0;
   const canEnter = st === "open" || v.page;
@@ -587,11 +605,12 @@ function renderCard(){
     ${body}
     ${yearList(k)}
     <div class="acts">${canEnter ? (NEW_TAB ? `<a class="btn primary" href="${esc(enterUrl(v))}" target="_blank" rel="noopener">入る（別のタブで開きます）</a>` : `<button type="button" class="btn primary" id="enter">入る</button>`) : `<span class="meta">${st === "staff" ? "" : "準備中です"}</span>`}
-      ${artist && artist.id && ARTIST_PAGE ? `<a class="btn" href="${ARTIST_PAGE(artist.id)}">${esc(artist.name)} のページ</a>` : ""}</div>`;
+      ${pageOf(artist) ? `<a class="btn" href="${esc(pageOf(artist))}"${NEW_TAB ? ' target="_blank" rel="noopener"' : ""}>${esc(artist.name)} のページ</a>` : ""}</div>`;
   $("#cardClose").onclick = () => closeCard();
   $("#card").querySelectorAll(".floors button").forEach(b => b.onclick = () => select(b.dataset.k));
   $("#card").querySelectorAll(".dates button").forEach(b => b.onclick = () => setDate(b.dataset.d));
   $("#card").querySelectorAll(".ylist button").forEach(b => b.onclick = () => setDate(b.dataset.d));
+  $("#card").querySelectorAll(".who button").forEach(b => b.onclick = () => { const a = ARTISTS.get(b.dataset.a); if (a) pickArtist(a, {date, venue:k}); });
   const yl = $("#card .ylist"); if (yl) yl.addEventListener("toggle", () => { ylistOpen = yl.open; });
   const en = $("#enter"); if (en) en.onclick = () => enter(v);
 }
@@ -636,7 +655,14 @@ function intro(target){
   try { await loadData(); } catch(e){ $("#loading").textContent = "街のデータを読めませんでした"; console.error(e); return; }
   $("#year").max = THIS_YEAR;
   build();
-  search(""); intro(firstYear());
+  search("");
+  // ほかのページからのリンク: map.html?d=2016-05-22&v=crr&a=1263（日付・ハコ・組の番号。どれも省ける）
+  const q = new URLSearchParams(location.search), qd = /^\d{4}-\d\d-\d\d$/.test(q.get("d") || "") ? q.get("d") : null,
+        qv = T.venues.some(v => v.key === q.get("v")) ? q.get("v") : null, qa = ARTISTS.get("#" + q.get("a"));
+  if (qd || qv || qa){   // 行き先が決まっているときはオープニングを飛ばす
+    setYear(+(qd || TODAY).slice(0, 4)); if (qd) setDate(qd);
+    if (qa){ showPane("artist"); pickArtist(qa, {date:qd, venue:qv}); } else if (qv) select(qv);
+  } else intro(firstYear());
   $("#loading").remove();
   $("#year").addEventListener("input", e => setYear(+e.target.value));
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPane(t.dataset.pane));
