@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>管理ページ｜公開と非公開</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#18181a; --ink-2:#64646a; --line:#e3e1da; --soft:#efede6;
+  --accent:#d4531f; --accent-ink:#9c3a12; --accent-tint:#fbe9df; --ok:#2e7d4f; --ok-tint:#e2f1e8; --err:#b3261e;
+  --sans:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;
+  --head:"Space Grotesk","Noto Sans JP",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141416; --card:#1d1d20; --ink:#ecebe6; --ink-2:#a3a29c; --line:#2f2f33; --soft:#26262a;
+  --accent:#f0804e; --accent-ink:#f5a37d; --accent-tint:#3a2419; --ok:#6fcf97; --ok-tint:#1c3327; --err:#f2b8b5; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#141416; --card:#1d1d20; --ink:#ecebe6; --ink-2:#a3a29c; --line:#2f2f33; --soft:#26262a;
+  --accent:#f0804e; --accent-ink:#f5a37d; --accent-tint:#3a2419; --ok:#6fcf97; --ok-tint:#1c3327; --err:#f2b8b5; color-scheme:dark }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7}
+a{color:inherit}
+.wrap{max-width:900px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{border-bottom:1px solid var(--line);background:var(--card);padding-top:env(safe-area-inset-top,0px)}
+header .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:14px}
+.logo{font-family:var(--head);font-weight:700;text-decoration:none}
+.me{margin-left:auto;font-size:.82rem;color:var(--ink-2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+main{padding-block:24px 64px;overflow-wrap:anywhere}
+h1{font-family:var(--head);font-size:clamp(1.4rem,4vw,1.9rem);margin:0 0 8px;text-wrap:balance}
+h2{font-size:1.05rem;margin:32px 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2 small{font-weight:400;font-size:.82rem;color:var(--ink-2)}
+.lead{color:var(--ink-2);max-width:64ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+label{display:block;font-size:.85rem;color:var(--ink-2);margin-bottom:10px}
+input{display:block;width:100%;margin-top:4px;font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+button{font:inherit;cursor:pointer;border-radius:999px;padding:7px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);white-space:nowrap}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+button.danger{color:var(--err);border-color:var(--err)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.msg{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:.9rem}
+.msg.ok{background:var(--ok-tint);color:var(--ok)}
+.msg.err{background:color-mix(in srgb,var(--err) 14%,var(--card));color:var(--err)}
+.note{font-size:.82rem;color:var(--ink-2)}
+.sum{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:18px 0 0}
+.sum .n{font-family:var(--head);font-weight:700;font-size:1.1rem}
+.filter{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.filter button{padding:4px 12px;font-size:.82rem}
+.filter button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.list{list-style:none;margin:0;padding:0}
+.src{border-top:1px solid var(--line);padding:12px 0}
+.src:first-child{border-top:0}
+.src .rowx{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.src .main{flex:1 1 280px;min-width:0}
+.src .nm{font-weight:700}
+.src .m{font-size:.82rem;color:var(--ink-2)}
+.src .m code{font-size:.78rem;background:var(--soft);padding:1px 6px;border-radius:6px}
+.state{font-size:.78rem;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.state.on{background:var(--ok-tint);color:var(--ok)}
+.state.off{background:var(--soft);color:var(--ink-2)}
+.confirm{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--accent-tint);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line))}
+.confirm p{margin:0 0 4px}
+.hist{font-size:.82rem;color:var(--ink-2)}
+.hist li{border-top:1px solid var(--line);padding:6px 0}
+.hist li:first-child{border-top:0}
+ul.plain{margin:6px 0 0;padding-left:1.2em}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="./">ライブハウスとバンドの記録</a>
+  <div class="me" id="me"></div>
+</div></header>
+<main class="wrap" id="app"><p class="note">読み込んでいます…</p></main>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+"use strict";
+const CFG = window.SITE_CONFIG;
+const app = document.getElementById("app"), me = document.getElementById("me");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = n => Number(n || 0).toLocaleString("ja-JP");
+const ym = d => d ? String(d).slice(0, 7).replace("-", ".") : "";
+const ERR = {not_admin:"このメールアドレスは、管理者として登録されていません。", not_switchable:"この記録は、ここでは切り替えられません。", no_source:"その記録が見つかりません。",
+             "permission denied":"ログインが切れています。ログインし直してください。"};
+const errText = e => { const m = (e && (e.message || e.error_description)) || String(e); const k = Object.keys(ERR).find(k => m.includes(k)); return k ? ERR[k] : m; };
+if (!window.supabase){ app.innerHTML = `<p class="msg err">部品を読み込めませんでした。時間をおいて開き直してください。</p>`; return; }
+const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.publishableKey, {auth:{persistSession:true, detectSessionInUrl:true, flowType:"implicit"}});
+let ME = null, DATA = null, flash = null, FILTER = "all", ASK = null, BUSY = false;
+
+async function rpc(fn, args){ const {data, error} = await sb.rpc(fn, args || {}); if (error) throw error; return data; }
+
+// ---------------------------------------------------------------- ログイン
+function vLogin(sent){
+  me.innerHTML = "";
+  app.innerHTML = `<h1>管理ページ</h1>
+  <p class="lead">集めた記録（ライブハウスの台帳・バンドの記録）を、公開サイトに出すか出さないかを切り替えるページです。管理者のメールアドレスでログインしてください。</p>
+  <div class="card" style="max-width:480px">
+    ${sent ? `<p class="msg ok">${esc(sent)} にログイン用のリンクを送りました。メールのリンクを開くと、このページに戻ってきます。</p>` : ""}
+    <form id="lf"><label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>
+    <div class="btns"><button class="primary" type="submit">ログイン用のリンクを送る</button></div></form>
+    <p class="note">パスワードは要りません。管理者として登録されていないアドレスでは、ログインしても何も見えません。</p>
+  </div>`;
+  document.getElementById("lf").addEventListener("submit", async e => {
+    e.preventDefault(); const email = e.target.email.value.trim(); const b = e.target.querySelector("button"); b.disabled = true;
+    const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + location.pathname, shouldCreateUser:true}});
+    if (error){ b.disabled = false; app.querySelector(".card").insertAdjacentHTML("afterbegin", `<p class="msg err">送れませんでした：${esc(errText(error))}</p>`); return; }
+    vLogin(email);
+  });
+}
+
+// ---------------------------------------------------------------- 一覧
+async function start(){
+  const {data:{session}} = await sb.auth.getSession();
+  if (!session) return vLogin();
+  ME = session.user;
+  me.innerHTML = `<span>${esc(ME.email)}</span><button id="lo">ログアウト</button>`;
+  document.getElementById("lo").onclick = async () => { await sb.auth.signOut(); vLogin(); };
+  await load();
+}
+async function load(){
+  try { DATA = await rpc("adm_sources"); }
+  catch(e){ app.innerHTML = `<h1>管理ページ</h1><p class="msg err">${esc(errText(e))}</p>`; return; }
+  render();
+}
+
+const LEVEL = {full:"詳しいページあり", name:"名前だけ", simple:"かんたんなページ"};
+function rowHtml(s){
+  const band = s.kind === "x";
+  const counts = `${num(s.shows)}公演${s.acts ? `・${num(s.acts)}出演` : ""}`;
+  const span = s.from ? `${ym(s.from)}〜${ym(s.to)}` : "";
+  let extra = "";
+  if (band && s.artist){
+    const page = s.artist.level === "full" && s.artist.slug ? `<a href="artists/${esc(s.artist.slug)}/">${LEVEL.full}</a>` : (LEVEL[s.artist.level] || esc(s.artist.level));
+    extra = `<div class="m">バンドのページ：${page}</div>`;
+  } else if (!band && s.venue){
+    extra = `<div class="m">会場：${esc(s.venue)}</div>`;
+  }
+  const asking = ASK === s.id;
+  return `<li class="src" data-id="${s.id}">
+    <div class="rowx">
+      <div class="main"><div class="nm">${esc(s.name)}</div>
+        <div class="m">${counts}${span ? `　${span}` : ""}　<code>${esc(s.key)}</code></div>${extra}</div>
+      <span class="state ${s.is_public ? "on" : "off"}">${s.is_public ? "公開中" : "非公開"}</span>
+      <button data-act="ask" ${BUSY || asking ? "disabled" : ""}>${s.is_public ? "非公開に戻す" : "公開する"}</button>
+    </div>
+    ${asking ? confirmHtml(s) : ""}
+  </li>`;
+}
+function confirmHtml(s){
+  const counts = `${num(s.shows)}公演${s.acts ? `・${num(s.acts)}出演` : ""}`;
+  const body = s.is_public
+    ? `<p><b>「${esc(s.name)}」を非公開に戻します。</b></p><p class="m">この記録だけが根拠の公演と出演が、公開サイトから見えなくなります。集めたデータは消えません。</p>`
+    : `<p><b>「${esc(s.name)}」を公開します。</b></p><p class="m">${counts}が、公開サイトの会場・公演・アーティストのページに出ます。開き直すとすぐ反映されます。${
+        s.kind === "x" ? (s.artist && s.artist.level !== "full" ? "このバンドのページは「名前だけ」の段階なので、会場や公演のページの出演者として名前が出ます。" : "")
+                       : "お店に一声かけてから公開する、という決まりにしています。"}</p>`;
+  return `<div class="confirm" role="group" aria-label="確認">${body}
+    <div class="btns"><button class="${s.is_public ? "danger" : "primary"}" data-act="go" ${BUSY ? "disabled" : ""}>${s.is_public ? "非公開に戻す" : "公開する"}</button>
+    <button data-act="cancel" ${BUSY ? "disabled" : ""}>やめる</button></div></div>`;
+}
+function render(){
+  const all = DATA.sources || [];
+  const on = all.filter(s => s.is_public).length;
+  const show = s => FILTER === "all" || (FILTER === "on") === !!s.is_public;
+  const venues = all.filter(s => s.kind !== "x"), bands = all.filter(s => s.kind === "x");
+  const group = (title, hint, list) => {
+    const vis = list.filter(show);
+    return `<h2>${title}<small>${hint}　${list.filter(s => s.is_public).length} / ${list.length} が公開中</small></h2>
+      <div class="card">${vis.length ? `<ul class="list">${vis.map(rowHtml).join("")}</ul>` : `<p class="note" style="margin:0">この絞り込みに当てはまる記録はありません。</p>`}</div>`;
+  };
+  const f = (k, label) => `<button data-filter="${k}" aria-pressed="${FILTER === k}">${label}</button>`;
+  app.innerHTML = `<h1>公開と非公開</h1>
+  <p class="lead">集めてある記録ごとに、公開サイトに出すかどうかを切り替えます。並んでいるのは、もう集めた記録だけです。</p>
+  ${flash ? `<p class="msg ${flash[0]}" role="status">${esc(flash[1])}</p>` : ""}
+  <div class="sum"><span><span class="n">${on}</span> 件が公開中　<span class="n">${all.length - on}</span> 件が非公開</span>
+    <div class="filter" role="group" aria-label="絞り込み">${f("all", "すべて")}${f("on", "公開中")}${f("off", "非公開")}</div></div>
+  ${group("ライブハウスの記録", "台帳・公式スケジュールの復元", venues)}
+  ${group("バンドの記録", "X の公開ポストなどから", bands)}
+  <h2>切り替えると変わるところ</h2>
+  <div class="card note"><ul class="plain">
+    <li>トップ・会場・公演・アーティストのページ：開き直すとすぐ変わります。</li>
+    <li>バンドの詳しいページ（年表・セトリ）：ここでは出せません。ページの作成と公開が別に要ります。</li>
+    <li>街の地図：地図に載せる公演は別のファイルで決めているので、ここでは変わりません。</li>
+    <li>バンド本人の書き込み：そのバンドが詳しいページを公開しているかどうかで決まります。</li>
+  </ul></div>
+  <h2>切り替えの履歴</h2>
+  <div class="card">${(DATA.log || []).length ? `<ul class="list hist">${DATA.log.map(l =>
+      `<li>${esc(new Date(l.at).toLocaleString("ja-JP", {dateStyle:"medium", timeStyle:"short"}))}　${esc(l.source)} → <b>${l.to ? "公開" : "非公開"}</b>　${esc(String(l.by || "").replace(/^admin:/, "").replace(/^manual:cli$/, "手元のコマンド"))}</li>`).join("")}</ul>`
+    : `<p class="note" style="margin:0">まだありません。</p>`}</div>`;
+  flash = null;
+}
+
+app.addEventListener("click", async e => {
+  const fb = e.target.closest("[data-filter]");
+  if (fb){ FILTER = fb.dataset.filter; ASK = null; render(); return; }
+  const b = e.target.closest("[data-act]"); if (!b || BUSY) return;
+  const li = b.closest(".src"); const id = Number(li.dataset.id); const s = DATA.sources.find(x => x.id === id); if (!s) return;
+  if (b.dataset.act === "ask"){ ASK = id; render(); const go = app.querySelector(`.src[data-id="${id}"] [data-act="go"]`); if (go) go.focus(); return; }
+  if (b.dataset.act === "cancel"){ ASK = null; render(); return; }
+  if (b.dataset.act === "go"){
+    BUSY = true; render();
+    try { await rpc("adm_set_public", {p_source: id, p_public: !s.is_public}); flash = ["ok", `「${s.name}」を${s.is_public ? "非公開に戻しました" : "公開にしました"}。`]; }
+    catch(err){ flash = ["err", errText(err)]; }
+    BUSY = false; ASK = null; await load();
+  }
+});
+
+sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_IN" && !ME) start(); });
+start();
+})();
+</script>
+</body>
+</html>
